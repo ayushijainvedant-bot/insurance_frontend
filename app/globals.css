@@ -1,0 +1,35 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ====================================================
+   DESIGN TOKENS — bright, modern palette (v2)
+   Swapped from the dark navy/gold "ledger" theme to a
+   light, energetic palette closer to what the reference
+   screenshots use, while keeping it ours: electric blue +
+   violet + a warm coral accent, on an off-white background.
+   ==================================================== */
+@theme {
+  --color-brand: #2952ff;        /* primary actions, links, headings accents */
+  --color-brand-dark: #1c3fd1;
+  --color-violet: #7c3aed;       /* secondary gradient stop */
+  --color-coral: #ff6b5b;        /* warm accent — badges, highlights */
+  --color-teal: #14b8a6;         /* success / savings accent */
+  --color-amber: #f59e0b;        /* discount badges */
+
+  --color-ink: #0f172a;
+  --color-ink-soft: #5b6679;
+  --color-paper: #f8fafc;        /* page background */
+  --color-surface: #ffffff;      /* card background */
+  --color-line: #e7eaf0;         /* hairline borders */
+
+  --font-display: "Sora", "IBM Plex Sans", ui-sans-serif, sans-serif;
+  --font-body: "Inter", ui-sans-serif, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
