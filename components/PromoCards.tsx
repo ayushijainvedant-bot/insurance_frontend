@@ -30,7 +30,7 @@ const CARDS = [
 export default function PromoCards() {
   return (
     <section className="bg-paper px-4 py-12 sm:px-6">
-      <div className="mx-auto grid max-w-[1180px] gap-5 sm:grid-cols-3">
+      <div className="mx-auto grid max-w-295 gap-5 sm:grid-cols-3">
         {CARDS.map((card, i) => {
           const Icon = card.icon;
           return (
@@ -41,7 +41,7 @@ export default function PromoCards() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.35, delay: i * 0.08 }}
-              className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${card.gradient} p-6 text-white transition-transform hover:-translate-y-1`}
+              className={`group relative overflow-hidden rounded-2xl bg-linear-to-br ${card.gradient} p-6 text-white transition-transform hover:-translate-y-1`}
             >
               <Icon className="h-7 w-7 text-white/90" />
               <p className="mt-4 text-xs font-bold uppercase tracking-wide text-white/75">{card.eyebrow}</p>

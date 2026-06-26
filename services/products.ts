@@ -23,6 +23,7 @@ export function toInsuranceCategory(product: BackendProduct): InsuranceCategory 
     cta: "Get Quote",
     icon: presentation.icon,
     features: product.config?.features ?? [],
+    category: product.category,
     productCode: product.productCode,
     subProductCode: product.subProductCode,
   };

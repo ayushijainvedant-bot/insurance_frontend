@@ -41,20 +41,20 @@ const STEPS = [
 export default function HowItWorks() {
   return (
     <section className="bg-paper px-4 py-20 sm:px-6">
-      <div className="mx-auto max-w-[1180px]">
+      <div className="mx-auto max-w-295">
         <div className="mb-12 text-center">
           <p className="mb-2 font-mono text-xs font-bold uppercase tracking-widest text-brand">
             Simple Process
           </p>
           <h2 className="font-display text-2xl font-bold text-ink sm:text-[2rem]">
             From comparison to claim in{" "}
-            <span className="bg-gradient-to-r from-coral to-amber bg-clip-text text-transparent">4 easy steps</span>
+            <span className="bg-linear-to-r from-coral to-amber bg-clip-text text-transparent">4 easy steps</span>
           </h2>
         </div>
 
         {/* connector line visible on desktop */}
         <div className="relative">
-          <div className="absolute top-10 hidden h-px w-full bg-gradient-to-r from-brand/20 via-teal/30 to-coral/20 lg:block" />
+          <div className="absolute top-10 hidden h-px w-full bg-linear-to-r from-brand/20 via-teal/30 to-coral/20 lg:block" />
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((s, i) => {
               const Icon = s.icon;

@@ -7,10 +7,10 @@ import { trustStats } from "@/data/trust-stats";
 export default function TrustStats() {
   return (
     <section className="bg-white px-4 py-16 sm:px-6">
-      <div className="mx-auto max-w-[1180px]">
+      <div className="mx-auto max-w-295">
         <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">
           What makes{" "}
-          <span className="bg-gradient-to-r from-brand to-violet bg-clip-text text-transparent">
+          <span className="bg-linear-to-r from-brand to-violet bg-clip-text text-transparent">
             Vedant Insurance
           </span>{" "}
           one of India&apos;s most trusted insurance marketplaces

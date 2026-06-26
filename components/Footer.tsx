@@ -73,8 +73,8 @@ export default function Footer() {
   return (
     <footer className="bg-ink text-white">
       {/* CTA banner */}
-      <div className="bg-gradient-to-r from-brand to-violet px-4 py-12 sm:px-6">
-        <div className="mx-auto flex max-w-[1180px] flex-col items-center gap-6 text-center sm:flex-row sm:justify-between sm:text-left">
+      <div className="bg-linear-to-r from-brand to-violet px-4 py-12 sm:px-6">
+        <div className="mx-auto flex max-w-295 flex-col items-center gap-6 text-center sm:flex-row sm:justify-between sm:text-left">
           <div>
             <h2 className="font-display text-xl font-bold text-white sm:text-2xl">
               Ready to get protected?
@@ -94,7 +94,7 @@ export default function Footer() {
 
       {/* Main footer body */}
       <div className="px-4 py-14 sm:px-6">
-        <div className="mx-auto max-w-[1180px]">
+        <div className="mx-auto max-w-295">
           <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1fr_1fr]">
             {/* Brand column */}
             <div>

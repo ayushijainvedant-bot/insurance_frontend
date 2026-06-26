@@ -2,6 +2,8 @@
 
 import { motion } from "framer-motion";
 import { useProducts } from "@/hooks/useProducts";
+import { useQuoteModal } from "@/hooks/useQuoteModal";
+import type { QuoteTabId } from "@/types";
 
 const BADGE: Record<string, string> = {
   teal:  "bg-teal/10 text-teal",
@@ -20,10 +22,11 @@ const ICON_BG: Record<string, string> = {
 
 export default function CategoryGrid() {
   const { categories, loading, error } = useProducts();
+  const { openQuote } = useQuoteModal();
 
   return (
     <section className="bg-paper px-4 py-14 sm:px-6">
-      <div className="mx-auto max-w-[1180px]">
+      <div className="mx-auto max-w-295">
         <div className="mb-8 flex items-end justify-between">
           <div>
             <p className="mb-1 font-mono text-xs font-bold uppercase tracking-widest text-brand">
@@ -75,15 +78,16 @@ export default function CategoryGrid() {
             : categories.map((cat, i) => {
             const Icon = cat.icon;
             return (
-              <motion.a
-                href="#"
+              <motion.button
+                type="button"
+                onClick={() => openQuote(cat.id as QuoteTabId)}
                 key={cat.id}
                 initial={{ opacity: 0, y: 14 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-30px" }}
                 transition={{ duration: 0.3, delay: i * 0.07 }}
                 whileHover={{ y: -5 }}
-                className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-sm transition-shadow hover:shadow-lg hover:shadow-brand/8"
+                className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white text-left shadow-sm transition-shadow hover:shadow-lg hover:shadow-brand/8"
               >
                 {/* badge */}
                 <span className={`px-3 py-1.5 text-center text-[0.7rem] font-bold ${BADGE[cat.badgeColor]}`}>
@@ -114,7 +118,7 @@ export default function CategoryGrid() {
                     {cat.cta} →
                   </span>
                 </div>
-              </motion.a>
+              </motion.button>
             );
           })}
         </div>

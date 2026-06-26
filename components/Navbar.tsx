@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Menu, X, Phone, ShieldCheck, HeartPulse, Bike, Car, TrendingUp } from "lucide-react";
+import { ChevronDown, Menu, X, Phone, ShieldCheck, HeartPulse, Bike, Car, TrendingUp, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import GetQuoteModal from "@/components/GetQuoteModal";
 import SignInModal from "@/components/SignInModal";
 import UserMenu from "@/components/UserMenu";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuoteModal } from "@/hooks/useQuoteModal";
 
 const PRODUCTS = [
   { label: "Term Life Insurance", href: "#", icon: ShieldCheck, color: "text-teal", bg: "bg-teal/10" },
@@ -45,10 +45,23 @@ export default function Navbar() {
   const [productsOpen, setProductsOpen] = useState(false);
   const [signInOpen, setSignInOpen] = useState(false);
   const { user, ready, signOut } = useAuth();
+  const { openQuote } = useQuoteModal();
+
+  const quoteButton = (
+    <Button
+      variant="solid"
+      size="sm"
+      onClick={() => openQuote()}
+      className="gap-1.5 bg-linear-to-r from-brand to-violet text-white shadow-md shadow-brand/25 hover:opacity-90"
+    >
+      <Sparkles className="h-3.5 w-3.5" />
+      Get Best Quote
+    </Button>
+  );
 
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex max-w-295 items-center justify-between gap-4 px-4 py-3 sm:px-6">
         {/* Logo */}
         <a href="#" className="flex items-center gap-2.5">
           <LogoMark />
@@ -120,7 +133,7 @@ export default function Navbar() {
             : <Button variant="ghost" size="sm" onClick={() => setSignInOpen(true)}>Sign in</Button>
           }
           {/* ★ the new "Get Best Quote" button lives here */}
-          <GetQuoteModal />
+          {quoteButton}
         </div>
 
         {/* Mobile hamburger */}
@@ -165,7 +178,7 @@ export default function Navbar() {
                 </a>
               ))}
               <div className="mt-3 flex flex-col gap-2">
-                <GetQuoteModal />
+                {quoteButton}
                 {ready && user
                   ? <UserMenu user={user} onSignOut={signOut} />
                   : (

@@ -68,14 +68,14 @@ const CARDS = [
 export default function WhyUs() {
   return (
     <section className="bg-white px-4 py-20 sm:px-6">
-      <div className="mx-auto max-w-[1180px]">
+      <div className="mx-auto max-w-295">
         <div className="mb-12 text-center">
           <p className="mb-2 font-mono text-xs font-bold uppercase tracking-widest text-brand">
             Why Vedant Insurance
           </p>
           <h2 className="font-display text-2xl font-bold text-ink sm:text-[2rem]">
             We do things a little{" "}
-            <span className="bg-gradient-to-r from-brand to-violet bg-clip-text text-transparent">
+            <span className="bg-linear-to-r from-brand to-violet bg-clip-text text-transparent">
               differently
             </span>
           </h2>
@@ -94,7 +94,7 @@ export default function WhyUs() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-40px" }}
                 transition={{ duration: 0.35, delay: (i % 4) * 0.07 }}
-                className={`group rounded-2xl bg-gradient-to-br p-6 ${card.accent} border border-line`}
+                className={`group rounded-2xl bg-linear-to-br p-6 ${card.accent} border border-line`}
               >
                 <span className={`inline-flex h-11 w-11 items-center justify-center rounded-xl ${card.iconBg}`}>
                   <Icon className="h-5.5 w-5.5" strokeWidth={1.8} />

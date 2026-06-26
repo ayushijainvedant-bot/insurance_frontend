@@ -124,7 +124,13 @@ export default function SignInModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
+      <DialogContent
+        className="max-h-[90vh] max-w-md overflow-y-auto"
+        // Close ONLY via the ✕ button: ignore outside clicks, focus loss
+        // (e.g. switching tabs to read the OTP SMS), and the Escape key.
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <AnimatePresence mode="wait">
 
           {/* ── STEP 1: mobile number ── */}
@@ -165,7 +171,7 @@ export default function SignInModal({
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-brand to-violet text-white hover:opacity-90"
+                  className="w-full bg-linear-to-r from-brand to-violet text-white hover:opacity-90"
                 >
                   {loading ? (<><Loader2 className="h-4 w-4 animate-spin" /> Sending OTP…</>) : "Sign in with OTP"}
                 </Button>

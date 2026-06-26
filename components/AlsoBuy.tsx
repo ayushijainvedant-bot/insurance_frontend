@@ -9,7 +9,7 @@ const TAG_COLOR: Record<string, string> = {
 export default function AlsoBuy() {
   return (
     <section className="bg-white px-4 py-12 sm:px-6">
-      <div className="mx-auto max-w-[1180px]">
+      <div className="mx-auto max-w-295">
         <span className="mb-4 block font-mono text-xs font-bold uppercase tracking-wide text-brand">
           Also buy
         </span>

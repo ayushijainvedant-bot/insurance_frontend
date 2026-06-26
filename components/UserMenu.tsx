@@ -29,7 +29,7 @@ export default function UserMenu({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button className="flex items-center gap-2 rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm font-semibold text-ink transition-colors hover:border-brand/40 hover:text-brand">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-r from-brand to-violet text-white">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-linear-to-r from-brand to-violet text-white">
             <UserIcon className="h-3.5 w-3.5" />
           </span>
           {user.phone ? maskPhone(user.phone) : user.email ?? "Account"}

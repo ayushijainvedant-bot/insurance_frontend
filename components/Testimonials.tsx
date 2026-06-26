@@ -63,12 +63,12 @@ const REVIEWS = [
 export default function Testimonials() {
   return (
     <section className="bg-paper px-4 py-20 sm:px-6">
-      <div className="mx-auto max-w-[1180px]">
+      <div className="mx-auto max-w-295">
         <div className="mb-12 text-center">
           <p className="mb-2 font-mono text-xs font-bold uppercase tracking-widest text-brand">Real Reviews</p>
           <h2 className="font-display text-2xl font-bold text-ink sm:text-[2rem]">
             9 million+ families{" "}
-            <span className="bg-gradient-to-r from-brand to-teal bg-clip-text text-transparent">trust us</span>
+            <span className="bg-linear-to-r from-brand to-teal bg-clip-text text-transparent">trust us</span>
           </h2>
           <p className="mx-auto mt-3 max-w-[480px] text-sm text-ink-soft">
             Honest reviews from real customers — across all five plans we offer.

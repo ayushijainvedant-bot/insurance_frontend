@@ -18,6 +18,7 @@ import type { QuickQuotePayload, TwoWheelerQuoteInput } from "@/types";
  */
 export function toQuickQuotePayload(input: TwoWheelerQuoteInput): QuickQuotePayload {
   return {
+    category: input.category,
     insuranceProductCode: input.productCode,
     subInsuranceProductCode: input.subProductCode ?? "",
     pincode: input.pincode || null,

@@ -11,6 +11,7 @@ export interface InsuranceCategory {
   cta: string;
   icon: LucideIcon;
   features: string[];   // used in the quote modal
+  category: string;             // backend product category (e.g. "two_wheeler")
   productCode: string;          // backend product code (e.g. "TWO_WHEELER", "20102")
   subProductCode: string | null;
 }
@@ -83,6 +84,7 @@ export type QuoteTabId = "term-life" | "health" | "two-wheeler" | "four-wheeler"
  * this onto the Go Digit `QuickQuotePayload` before sending.
  */
 export interface TwoWheelerQuoteInput {
+  category: string;             // from the selected product (e.g. "two_wheeler")
   productCode: string;          // from the selected product
   subProductCode: string | null;
   vehicleMainCode: string;
@@ -101,6 +103,7 @@ export interface TwoWheelerQuoteInput {
  * backend's exact (lowercase-c) field name.
  */
 export interface QuickQuotePayload {
+  category: string;             // backend product category (e.g. "two_wheeler")
   insuranceProductCode: string;
   subInsuranceProductCode: string;
   pincode?: string | null;
@@ -152,4 +155,59 @@ export interface RequestOtpResult {
 export interface VerifyOtpResult {
   user: AuthUser;
   token: string;              // JWT access token (no refresh token issued)
+}
+
+/* ── Quote Results ──────────────────────────────────────────────────────── */
+
+export type SortKey =
+  | "premium_asc"
+  | "premium_desc"
+  | "idv_desc"
+  | "idv_asc";
+
+export interface PlanAddOn {
+  name: string;
+  included: boolean;   // true = bundled, false = optional
+}
+
+export interface InsurancePlan {
+  id: string;
+  insurerName: string;
+  insurerLogo?: string;          // URL or undefined → use initials fallback
+  premiumAmount: number;         // annual premium in INR
+  idvAmount: number;             // Insured Declared Value in INR
+  claimSettlementRatio: number;  // e.g. 98.5 (percent)
+  cashlessGarageCount: number;
+  keyBenefits: string[];         // up to 4 bullet points
+  addOns: PlanAddOn[];
+  isRecommended?: boolean;
+  coverageType: "comprehensive" | "third-party" | "own-damage";
+  policyTenure: number;          // years, usually 1
+  // Expanded detail fields
+  coverageDetails?: {
+    ownDamage?: string;
+    thirdPartyLiability?: string;
+    personalAccident?: string;
+    naturalCalamities?: string;
+    theft?: string;
+  };
+  exclusions?: string[];
+}
+
+export interface QuoteFilters {
+  recommendedAddons: string[];
+  otherAddons: string[];
+  deductible: string | null;     // e.g. "zero", "2500", "5000"
+  accidentCovers: string[];
+  accessoriesCovers: string[];
+}
+
+/** Shape stored in sessionStorage under `vi_quote_context`. */
+export interface QuoteContext {
+  registrationNumber: string;
+  vehicleModel: string;          // human-readable e.g. "Honda Activa 6G"
+  policyExpiry: string | null;   // ISO date string
+  selectedIdv: number | null;
+  quoteType: QuoteTabId;
+  plans: InsurancePlan[];        // results from the API (or mocks)
 }

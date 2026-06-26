@@ -6,7 +6,7 @@ import { ScanSearch, Zap, ArrowRight, Target } from "lucide-react";
 export default function Hero() {
   return (
     <section className="bg-white px-4 py-14 sm:px-6 lg:py-20">
-      <div className="mx-auto grid max-w-[1180px] items-center gap-10 lg:grid-cols-[1fr_1fr] lg:gap-16">
+      <div className="mx-auto grid max-w-295 items-center gap-10 lg:grid-cols-[1fr_1fr] lg:gap-16">
         <div>
           <motion.h1
             initial={{ opacity: 0, y: 14 }}
@@ -15,7 +15,7 @@ export default function Hero() {
             className="font-display text-[2rem] font-bold leading-[1.18] text-ink sm:text-[2.6rem] lg:text-[3.1rem]"
           >
             Let&apos;s find you<br />
-            the <span className="bg-gradient-to-r from-brand to-violet bg-clip-text text-transparent">Best Insurance</span>
+            the <span className="bg-linear-to-r from-brand to-violet bg-clip-text text-transparent">Best Insurance</span>
           </motion.h1>
 
           <motion.div
@@ -47,7 +47,7 @@ export default function Hero() {
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.55, delay: 0.15 }}
-          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand via-brand to-violet p-8 text-white shadow-xl shadow-brand/20 sm:p-10"
+          className="relative overflow-hidden rounded-2xl bg-linear-to-br from-brand via-brand to-violet p-8 text-white shadow-xl shadow-brand/20 sm:p-10"
         >
           <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/10" />
           <div className="pointer-events-none absolute -bottom-10 -left-6 h-32 w-32 rounded-full bg-white/10" />

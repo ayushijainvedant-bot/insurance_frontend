@@ -8,7 +8,7 @@ import { calculatorGroups } from "@/data/calculators";
 export default function PopularCalculators() {
   return (
     <section className="bg-paper px-4 py-16 sm:px-6">
-      <div className="mx-auto max-w-[1180px]">
+      <div className="mx-auto max-w-295">
         <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">Popular calculators</h2>
         <p className="mt-3 max-w-[680px] text-sm text-ink-soft sm:text-base">
           User-friendly calculators built to help you make informed financial decisions — explore the
@@ -27,7 +27,7 @@ export default function PopularCalculators() {
                 transition={{ duration: 0.35, delay: i * 0.08 }}
                 className="overflow-hidden rounded-2xl border border-line bg-white"
               >
-                <div className={`flex items-center gap-3 bg-gradient-to-br ${group.gradient} px-5 py-5`}>
+                <div className={`flex items-center gap-3 bg-linear-to-br ${group.gradient} px-5 py-5`}>
                   <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/70">
                     <Icon className="h-5 w-5 text-ink" />
                   </span>
