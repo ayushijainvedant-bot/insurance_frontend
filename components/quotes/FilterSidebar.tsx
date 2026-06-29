@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { SlidersHorizontal, X, ChevronDown, ChevronUp } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SlidersHorizontal, ChevronDown, ChevronUp } from "lucide-react";
+import { MOTOR_ADDONS, MOTOR_ACCESSORIES, MOTOR_DEDUCTIBLES } from "@/services/quote";
 import type { QuoteFilters, SortKey } from "@/types";
+
+const ADDONS = MOTOR_ADDONS.map((a) => a.label);
 
 interface FilterSidebarProps {
   filters: QuoteFilters;
@@ -22,39 +24,7 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "idv_asc", label: "IDV low to high" },
 ];
 
-const RECOMMENDED_ADDONS = [
-  "Zero Depreciation",
-  "24x7 Roadside Assistance",
-  "Battery Protection Cover",
-  "Consumables"
-];
-
-const OTHER_ADDONS = [
-  "Key & Lock Replacement",
-  "Invoice Price Cover",
-  "Tyre Protector",
-  "Loss of Personal Belongings"
-];
-
-const DEDUCTIBLES = [
-  { value: "zero", label: "Zero Deductible" },
-  { value: "2500", label: "₹2500 Voluntary Deductible" },
-  { value: "5000", label: "₹5000 Voluntary Deductible" },
-  { value: "7500", label: "₹7500 Voluntary Deductible" },
-  { value: "15000", label: "₹15000 Voluntary Deductible" },
-];
-
-const ACCIDENT_COVERS = [
-  "Owner-Driver PA Cover",
-  "Paid Driver Cover",
-  "₹1 Lac Unnamed Passenger Cover",
-  "₹2 Lac Unnamed Passenger Cover"
-];
-
-const ACCESSORIES_COVERS = [
-  "Electrical Accessories",
-  "Non-Electrical Accessories"
-];
+const DEDUCTIBLES = MOTOR_DEDUCTIBLES;
 
 function Section({
   title,
@@ -148,11 +118,9 @@ export default function FilterSidebar({
   filteredCount,
 }: FilterSidebarProps) {
   const hasActiveFilters =
-    filters.recommendedAddons.length > 0 ||
-    filters.otherAddons.length > 0 ||
+    filters.addons.length > 0 ||
     filters.deductible !== null ||
-    filters.accidentCovers.length > 0 ||
-    filters.accessoriesCovers.length > 0;
+    filters.accessories.length > 0;
 
   function toggleArray(list: string[], item: string, checked: boolean) {
     return checked ? [...list, item] : list.filter((i) => i !== item);
@@ -195,36 +163,18 @@ export default function FilterSidebar({
         ))}
       </Section>
 
-      {/* ── Recommended Addons ── */}
-      <Section title="Recommended Addons">
-        {RECOMMENDED_ADDONS.map((name) => (
+      {/* ── Addons ── */}
+      <Section title="Addons">
+        {ADDONS.map((name) => (
           <CheckItem
             key={name}
             id={`addon-${name.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}`}
             label={name}
-            checked={filters.recommendedAddons.includes(name)}
+            checked={filters.addons.includes(name)}
             onChange={(v) =>
               onFiltersChange({
                 ...filters,
-                recommendedAddons: toggleArray(filters.recommendedAddons, name, v),
-              })
-            }
-          />
-        ))}
-      </Section>
-
-      {/* ── Other Addons ── */}
-      <Section title="Other Addons" defaultOpen={false}>
-        {OTHER_ADDONS.map((name) => (
-          <CheckItem
-            key={name}
-            id={`addon-${name.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}`}
-            label={name}
-            checked={filters.otherAddons.includes(name)}
-            onChange={(v) =>
-              onFiltersChange({
-                ...filters,
-                otherAddons: toggleArray(filters.otherAddons, name, v),
+                addons: toggleArray(filters.addons, name, v),
               })
             }
           />
@@ -245,53 +195,24 @@ export default function FilterSidebar({
         ))}
       </Section>
 
-      {/* ── Accident covers ── */}
-      <Section title="Accident covers" defaultOpen={false}>
-        {ACCIDENT_COVERS.map((name) => (
-          <CheckItem
-            key={name}
-            id={`accident-${name.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}`}
-            label={name}
-            checked={filters.accidentCovers.includes(name)}
-            onChange={(v) =>
-              onFiltersChange({
-                ...filters,
-                accidentCovers: toggleArray(filters.accidentCovers, name, v),
-              })
-            }
-          />
-        ))}
-      </Section>
-
       {/* ── Accessories cover ── */}
       <Section title="Accessories cover" defaultOpen={false}>
-        {ACCESSORIES_COVERS.map((name) => (
+        {MOTOR_ACCESSORIES.map(({ label }) => (
           <CheckItem
-            key={name}
-            id={`accessory-${name.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}`}
-            label={name}
-            checked={filters.accessoriesCovers.includes(name)}
+            key={label}
+            id={`accessory-${label.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}`}
+            label={label}
+            checked={filters.accessories.includes(label)}
             onChange={(v) =>
               onFiltersChange({
                 ...filters,
-                accessoriesCovers: toggleArray(filters.accessoriesCovers, name, v),
+                accessories: toggleArray(filters.accessories, label, v),
               })
             }
           />
         ))}
       </Section>
 
-      {hasActiveFilters && (
-        <div className="mt-2">
-          <Button
-            id="apply-filters-btn"
-            size="sm"
-            className="w-full bg-linear-to-r from-brand to-violet text-white"
-          >
-            Apply Filters
-          </Button>
-        </div>
-      )}
     </aside>
   );
 }

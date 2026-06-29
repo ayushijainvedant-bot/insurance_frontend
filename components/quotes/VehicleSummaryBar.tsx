@@ -67,11 +67,9 @@ export default function VehicleSummaryBar({
     : "N/A";
 
   const hasActiveFilters =
-    filters.recommendedAddons.length > 0 ||
-    filters.otherAddons.length > 0 ||
+    filters.addons.length > 0 ||
     filters.deductible !== null ||
-    filters.accidentCovers.length > 0 ||
-    filters.accessoriesCovers.length > 0;
+    filters.accessories.length > 0;
 
   return (
     <>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Menu, X, Phone, ShieldCheck, HeartPulse, Bike, Car, TrendingUp, Sparkles } from "lucide-react";
 
@@ -63,12 +64,12 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 border-b border-line bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-295 items-center justify-between gap-4 px-4 py-3 sm:px-6">
         {/* Logo */}
-        <a href="#" className="flex items-center gap-2.5">
+        <Link href="/" className="flex items-center gap-2.5">
           <LogoMark />
           <span className="font-display text-[1.05rem] font-bold text-ink">
             vedant<span className="text-brand">insurance</span>
           </span>
-        </a>
+        </Link>
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-6 lg:flex">

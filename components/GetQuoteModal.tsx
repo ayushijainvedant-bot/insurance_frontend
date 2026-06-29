@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
-import { CheckCircle2, Loader2, AlertCircle } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 
 import {
   Dialog, DialogContent,
@@ -12,9 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useProducts } from "@/hooks/useProducts";
-import { quickQuote } from "@/services/quote";
-import { setQuoteContext } from "@/services/quoteStore";
-import type { InsurancePlan, QuoteContext, QuoteTabId, TwoWheelerQuoteInput } from "@/types";
+import { encodeQuoteInput } from "@/services/quote";
+import type { QuoteTabId, TwoWheelerQuoteInput } from "@/types";
 
 const input =
   "w-full rounded-lg border border-line bg-paper px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20";
@@ -25,49 +24,6 @@ const BADGE: Record<string, string> = {
   amber:"border-amber/40 bg-amber/8 text-amber",
   violet:"border-violet/40 bg-violet/8 text-violet",
 };
-
-// Shape of the backend quick-quote response: { message, data: ProviderQuote[] }.
-interface DigitVehicle {
-  make?: string;
-  model?: string;
-  licensePlateNumber?: string;
-  vehicleIDV?: { idv?: number };
-}
-interface DigitCoverage { selection?: boolean }
-interface DigitCoverages {
-  thirdPartyLiability?: { selection?: boolean; netPremium?: string; isTPPD?: boolean };
-  ownDamage?: { selection?: boolean; withZeroDepNetPremium?: string; withoutZeroDepNetPremium?: string };
-  fire?: DigitCoverage;
-  theft?: DigitCoverage;
-  personalAccident?: { selection?: boolean; coverTerm?: number; coverAvailability?: string; netPremium?: string };
-  addons?: {
-    partsDepreciation?: DigitCoverage;
-    engineProtection?: DigitCoverage;
-    roadSideAssistance?: DigitCoverage;
-    returnToInvoice?: DigitCoverage;
-    consumables?: DigitCoverage;
-    tyreProtection?: DigitCoverage;
-  };
-}
-interface ProviderQuote {
-  provider?: string;          // e.g. "DIGIT"
-  premium?: number;           // gross premium as a number, e.g. 4030.88
-  data?: {
-    enquiryId?: string;
-    grossPremium?: string;    // e.g. "INR 4030.88"
-    netPremium?: string;
-    vehicle?: DigitVehicle;
-    contract?: { endDate?: string; coverages?: DigitCoverages };
-  };
-}
-
-/** "INR 3416.00" → "₹3,416". Returns null when there's no usable value. */
-function formatINR(val?: string | number): string | null {
-  if (val == null) return null;
-  const n = Number(String(val).replace(/[^0-9.]/g, ""));
-  if (!Number.isFinite(n)) return null;
-  return `₹${n.toLocaleString("en-IN")}`;
-}
 
 interface FormValues {
   // Common lead fields (term-life / health / four-wheeler / investment)
@@ -97,8 +53,6 @@ export default function GetQuoteModal({
 }) {
   const [step, setStep] = useState<"pick" | "details" | "done">("pick");
   const [chosen, setChosen] = useState<QuoteTabId | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>();
   const { categories, loading, error } = useProducts();
   const router = useRouter();
@@ -129,107 +83,25 @@ export default function GetQuoteModal({
     setStep("details");
   }
 
-  async function onSubmit(values: FormValues) {
-    // Motor (two/four-wheeler) submits the vehicle payload to the backend
-    // quick-quote API; the other categories keep the lead-capture flow.
+  function onSubmit(values: FormValues) {
+    // Motor (two/four-wheeler): encode the inputs into the /quotes URL and
+    // let the results page fetch from the backend. The URL is the single
+    // source of truth, so the link is shareable + refresh-safe (no client
+    // storage). Other categories keep the lead-capture confirmation.
     if (isMotor) {
-      setSubmitError(null);
-      setSubmitting(true);
-      try {
-        const payload: TwoWheelerQuoteInput = {
-          category: chosenCat?.category ?? "",
-          productCode: chosenCat?.productCode ?? "",
-          subProductCode: chosenCat?.subProductCode ?? null,
-          vehicleMainCode: values.vehicleMainCode ?? "",
-          licensePlateNumber: values.licensePlateNumber ?? "",
-          pincode: values.pincode ?? "",
-          manufactureDate: values.manufactureDate ?? "",
-          registrationDate: values.registrationDate ?? "",
-          isVehicleNew: !!values.isVehicleNew,
-        };
-        const result = await quickQuote(payload) as { data?: ProviderQuote[] } | undefined;
-        const quotes: ProviderQuote[] = Array.isArray(result?.data) ? result.data : [];
-
-        const labelFor = (provider?: string) =>
-          provider === "DIGIT" ? "Go Digit" : (provider ?? "Insurer");
-
-        // Map each provider quote → an InsurancePlan, pulling the coverage
-        // breakdown + add-ons from the response's contract.coverages.
-        const plans: InsurancePlan[] = quotes
-          .filter((q) => typeof q.premium === "number" && q.premium > 0)
-          .map((q, i): InsurancePlan => {
-            const cov = q.data?.contract?.coverages;
-            const tpl = cov?.thirdPartyLiability;
-            const od = cov?.ownDamage;
-            const pa = cov?.personalAccident;
-            const ad = cov?.addons;
-
-            const tplPremium = formatINR(tpl?.netPremium);
-            const paPremium = formatINR(pa?.netPremium);
-
-            return {
-              id: q.data?.enquiryId || `${q.provider ?? "quote"}-${i}`,
-              insurerName: labelFor(q.provider),
-              insurerLogo: undefined,
-              premiumAmount: q.premium ?? 0,
-              idvAmount: q.data?.vehicle?.vehicleIDV?.idv ?? 0,
-              claimSettlementRatio: 96.5,   // not in quick-quote response
-              cashlessGarageCount: 10500,   // not in quick-quote response
-              keyBenefits: [
-                od ? "Comprehensive own-damage cover" : null,
-                tpl ? `Third-party liability${tplPremium ? ` · ${tplPremium}` : ""}` : null,
-                pa?.coverAvailability === "AVAILABLE" ? "Personal accident cover available" : null,
-                "Cashless garage network",
-              ].filter(Boolean) as string[],
-              addOns: [
-                { name: "Zero Depreciation", included: !!ad?.partsDepreciation?.selection },
-                { name: "Engine Protection", included: !!ad?.engineProtection?.selection },
-                { name: "Roadside Assistance", included: !!ad?.roadSideAssistance?.selection },
-                { name: "Return to Invoice", included: !!ad?.returnToInvoice?.selection },
-                { name: "Consumables", included: !!ad?.consumables?.selection },
-              ],
-              isRecommended: i === 0,
-              coverageType: "comprehensive",
-              policyTenure: 1,
-              coverageDetails: {
-                ownDamage: od
-                  ? `Own-damage cover against accidents, fire & theft${od.withZeroDepNetPremium != null ? " · zero-depreciation available" : ""}.`
-                  : "Comprehensive own-damage protection.",
-                thirdPartyLiability: tpl
-                  ? `Third-party property & injury liability${tplPremium ? ` · net premium ${tplPremium}` : ""}.`
-                  : "Covers third-party property damage and injuries.",
-                personalAccident: pa
-                  ? `${pa.coverAvailability === "AVAILABLE" ? "Available" : "Owner-driver cover"}${paPremium ? ` · ${paPremium}` : ""}${pa.coverTerm ? ` · ${pa.coverTerm}-yr term` : ""}.`
-                  : "Personal accident cover for owner-driver.",
-                naturalCalamities: cov?.fire?.selection ? "Covered" : "Included in comprehensive cover",
-                theft: cov?.theft?.selection ? "Covered" : "Included in comprehensive cover",
-              },
-            };
-          });
-
-        // Build a friendly vehicle summary from the first quote's vehicle data.
-        const vehicle = quotes[0]?.data?.vehicle;
-        const vehicleModel = [vehicle?.make, vehicle?.model].filter(Boolean).join(" ")
-          || values.vehicleMainCode || "Your Vehicle";
-
-        const ctx: QuoteContext = {
-          registrationNumber: vehicle?.licensePlateNumber || values.licensePlateNumber || "",
-          vehicleModel,
-          policyExpiry: quotes[0]?.data?.contract?.endDate ?? values.registrationDate ?? null,
-          selectedIdv: plans[0]?.idvAmount || null,
-          quoteType: chosen ?? "two-wheeler",
-          plans,
-        };
-        setQuoteContext(ctx);
-
-        // Close modal and navigate to the results page
-        onOpenChange(false);
-        router.push("/quotes");
-      } catch (err) {
-        setSubmitError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
-      } finally {
-        setSubmitting(false);
-      }
+      const quoteInput: TwoWheelerQuoteInput = {
+        category: chosenCat?.category ?? "",
+        productCode: chosenCat?.productCode ?? "",
+        subProductCode: chosenCat?.subProductCode ?? null,
+        vehicleMainCode: values.vehicleMainCode ?? "",
+        licensePlateNumber: values.licensePlateNumber ?? "",
+        pincode: values.pincode ?? "",
+        manufactureDate: values.manufactureDate ?? "",
+        registrationDate: values.registrationDate ?? "",
+        isVehicleNew: !!values.isVehicleNew,
+      };
+      onOpenChange(false);
+      router.push(`/quotes?${encodeQuoteInput(quoteInput)}`);
       return;
     }
     setStep("done");
@@ -240,7 +112,6 @@ export default function GetQuoteModal({
     if (!next) {
       setTimeout(() => {
         setStep("pick"); setChosen(null); reset();
-        setSubmitting(false); setSubmitError(null);
       }, 300);
     }
   }
@@ -419,31 +290,8 @@ export default function GetQuoteModal({
                   ))}
                 </div>
 
-                {submitError && (
-                  <motion.div
-                    role="alert"
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-start gap-3 rounded-xl border border-coral/30 bg-coral/8 px-4 py-3"
-                  >
-                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-coral/15">
-                      <AlertCircle className="h-4 w-4 text-coral" strokeWidth={2.2} />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-ink">
-                        {/(log ?in|sign ?in|token|unauthor)/i.test(submitError)
-                          ? "Please sign in to continue"
-                          : "We couldn't fetch your quotes"}
-                      </p>
-                      <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">{submitError}</p>
-                    </div>
-                  </motion.div>
-                )}
-
-                <Button type="submit" disabled={submitting} className="w-full bg-linear-to-r from-brand to-violet text-white">
-                  {submitting
-                    ? (<><Loader2 className="h-4 w-4 animate-spin" /> Fetching quotes…</>)
-                    : "Show Me the Best Quotes →"}
+                <Button type="submit" className="w-full bg-linear-to-r from-brand to-violet text-white">
+                  Show Me the Best Quotes →
                 </Button>
                 <p className="text-center text-[0.7rem] text-ink-soft">
                   No spam. Your data is encrypted and never sold.

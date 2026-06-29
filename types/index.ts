@@ -118,6 +118,11 @@ export interface QuickQuotePayload {
   previousPolicyExpiryDate?: string;
   previousNoClaimBonus?: string;
   previousPolicyType?: string;
+  // Re-pricing selections (from the results-page filters). Nested exactly as
+  // the backend / Go Digit adapter expects.
+  addons?: Record<string, { selection: boolean }>;
+  accessories?: Record<string, { selection: boolean }>;
+  voluntaryDeductible?: string;
 }
 
 export interface QuoteTab {
@@ -195,11 +200,9 @@ export interface InsurancePlan {
 }
 
 export interface QuoteFilters {
-  recommendedAddons: string[];
-  otherAddons: string[];
+  addons: string[];
   deductible: string | null;     // e.g. "zero", "2500", "5000"
-  accidentCovers: string[];
-  accessoriesCovers: string[];
+  accessories: string[];
 }
 
 /** Shape stored in sessionStorage under `vi_quote_context`. */

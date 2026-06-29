@@ -1,40 +1,16 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { InsurancePlan, QuoteContext, QuoteFilters, SortKey } from "@/types";
-import { MOCK_PLANS } from "@/data/mockPlans";
 
-import { getQuoteContext, clearQuoteContext } from "@/services/quoteStore";
+import { decodeQuoteInput, fetchQuoteResults } from "@/services/quote";
 
 const DEFAULT_FILTERS: QuoteFilters = {
-  recommendedAddons: [],
-  otherAddons: [],
+  addons: [],
   deductible: null,
-  accidentCovers: [],
-  accessoriesCovers: [],
+  accessories: [],
 };
-
-function applyFilters(plans: InsurancePlan[], filters: QuoteFilters): InsurancePlan[] {
-  return plans.filter((plan) => {
-    // In a real app, these filters would check plan.addOns and plan.coverageDetails
-    // Since we only have one Digit plan right now, we can just return true or filter based on mock logic.
-    // For now, let's keep it simple: if any filter requires something not in the plan, exclude it.
-    const planAddonNames = plan.addOns.filter((a) => a.included).map((a) => a.name);
-    
-    if (filters.recommendedAddons.length > 0) {
-      const hasAll = filters.recommendedAddons.every((name) => planAddonNames.includes(name));
-      if (!hasAll) return false;
-    }
-    
-    if (filters.otherAddons.length > 0) {
-      const hasAll = filters.otherAddons.every((name) => planAddonNames.includes(name));
-      if (!hasAll) return false;
-    }
-    
-    return true;
-  });
-}
 
 function applySorting(plans: InsurancePlan[], sort: SortKey): InsurancePlan[] {
   const copy = [...plans];
@@ -58,7 +34,9 @@ export interface UseQuoteResultsReturn {
   filteredPlans: InsurancePlan[];
   filters: QuoteFilters;
   sortKey: SortKey;
-  loading: boolean;
+  loading: boolean;      // initial fetch
+  updating: boolean;     // re-pricing after a filter change
+  error: string | null;
   setFilters: (f: QuoteFilters) => void;
   setSortKey: (s: SortKey) => void;
   clearFilters: () => void;
@@ -70,29 +48,56 @@ export function useQuoteResults(): UseQuoteResultsReturn {
   const [filters, setFilters] = useState<QuoteFilters>(DEFAULT_FILTERS);
   const [sortKey, setSortKey] = useState<SortKey>("premium_asc");
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const loadedRef = useRef(false);
+
+  // Fetch on mount AND whenever the filters change (re-price). The inputs
+  // come from the URL; the selected add-ons/accessories/deductible are sent
+  // to the backend so it re-prices. A short debounce coalesces rapid toggles.
   useEffect(() => {
-    try {
-      const ctx = getQuoteContext();
-      if (ctx) {
-        setContext(ctx);
-        setAllPlans(ctx.plans || []);
-        setLoading(false);
-      } else {
-        router.replace("/");
-      }
-    } catch {
+    const input = decodeQuoteInput(new URLSearchParams(window.location.search));
+    if (!input) {
       router.replace("/");
+      return;
     }
-  }, [router]);
 
-  // Derived filter + sort
+    const first = !loadedRef.current;
+    let active = true;
+    /* eslint-disable react-hooks/set-state-in-effect --
+       starting a fetch in response to filter changes; intentional. */
+    if (first) setLoading(true); else setUpdating(true);
+    setError(null);
+    /* eslint-enable react-hooks/set-state-in-effect */
+
+    const timer = setTimeout(() => {
+      fetchQuoteResults(input, filters)
+        .then((ctx) => {
+          if (!active) return;
+          setContext(ctx);
+          setAllPlans(ctx.plans || []);
+          loadedRef.current = true;
+        })
+        .catch((err: unknown) => {
+          if (!active) return;
+          setError(err instanceof Error ? err.message : "Could not fetch quotes. Please try again.");
+        })
+        .finally(() => {
+          if (!active) return;
+          setLoading(false);
+          setUpdating(false);
+        });
+    }, first ? 0 : 350);
+
+    return () => { active = false; clearTimeout(timer); };
+  }, [filters, router]);
+
+  // Sorting stays client-side; filtering/re-pricing is server-side.
   const filteredPlans = useMemo(
-    () => applySorting(applyFilters(allPlans, filters), sortKey),
-    [allPlans, filters, sortKey],
+    () => applySorting(allPlans, sortKey),
+    [allPlans, sortKey],
   );
-
-
 
   function clearFilters() {
     setFilters(DEFAULT_FILTERS);
@@ -105,6 +110,8 @@ export function useQuoteResults(): UseQuoteResultsReturn {
     filters,
     sortKey,
     loading,
+    updating,
+    error,
     setFilters,
     setSortKey,
     clearFilters,
