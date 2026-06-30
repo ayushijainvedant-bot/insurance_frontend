@@ -93,6 +93,12 @@ export interface TwoWheelerQuoteInput {
   manufactureDate: string;
   registrationDate: string;
   isVehicleNew: boolean;
+  // Previous-policy details — required by Digit for an existing (renewal)
+  // vehicle (isVehicleNew = false); omitted for a brand-new vehicle.
+  previousInsurerCode?: string;
+  previousPolicyExpiryDate?: string;
+  isClaimInLastYear?: boolean;
+  previousNoClaimBonus?: string;
 }
 
 /**
@@ -116,6 +122,7 @@ export interface QuickQuotePayload {
   // Required by the backend only for an existing vehicle (isVehicleNew=false).
   previousInsurerCode?: string;
   previousPolicyExpiryDate?: string;
+  isClaimInLastYear?: boolean;
   previousNoClaimBonus?: string;
   previousPolicyType?: string;
   // Re-pricing selections (from the results-page filters). Nested exactly as

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ChevronDown,
@@ -67,6 +68,17 @@ function CoverageTypeBadge({ type }: { type: InsurancePlan["coverageType"] }) {
 
 export default function PlanCard({ plan, index }: PlanCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const router = useRouter();
+
+  // Carry the quote inputs (already in the URL) + this plan's identifiers
+  // onto the proposal page.
+  function buyNow() {
+    const params = new URLSearchParams(window.location.search);
+    params.set("enquiryId", plan.id);
+    params.set("premium", String(plan.premiumAmount));
+    params.set("insurer", plan.insurerName);
+    router.push(`/proposal?${params.toString()}`);
+  }
 
   return (
     <motion.article
@@ -214,6 +226,7 @@ export default function PlanCard({ plan, index }: PlanCardProps) {
             <Button
               id={`buy-${plan.id}`}
               size="sm"
+              onClick={buyNow}
               className="gap-1.5 bg-linear-to-r from-brand to-violet text-white shadow-md shadow-brand/25 hover:opacity-90"
             >
               Buy Now <ArrowRight className="h-3 w-3" />

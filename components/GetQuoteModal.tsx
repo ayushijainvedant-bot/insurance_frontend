@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
 
 import {
   Dialog, DialogContent,
@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useProducts } from "@/hooks/useProducts";
-import { encodeQuoteInput } from "@/services/quote";
+import { encodeQuoteInput, MOTOR_PREVIOUS_INSURERS, MOTOR_NCB } from "@/services/quote";
+import PreviousPolicyModal, { type PreviousPolicy } from "@/components/PreviousPolicyModal";
 import type { QuoteTabId, TwoWheelerQuoteInput } from "@/types";
 
 const input =
@@ -53,13 +54,18 @@ export default function GetQuoteModal({
 }) {
   const [step, setStep] = useState<"pick" | "details" | "done">("pick");
   const [chosen, setChosen] = useState<QuoteTabId | null>(null);
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>();
+  const [prevPolicy, setPrevPolicy] = useState<PreviousPolicy | null>(null);
+  const [prevModalOpen, setPrevModalOpen] = useState(false);
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<FormValues>();
   const { categories, loading, error } = useProducts();
   const router = useRouter();
 
   const chosenCat = categories.find((c) => c.id === chosen);
+  const ChosenIcon = chosenCat?.icon;
   // Two- and four-wheeler share the motor vehicle form + quick-quote API.
   const isMotor = chosen === "two-wheeler" || chosen === "four-wheeler";
+  // Existing (renewal) vehicle needs previous-policy details.
+  const isRenewal = isMotor && !watch("isVehicleNew");
 
   // When opened, jump straight to a preselected plan's form (card click) or
   // start at the plan picker (the navbar "Get Best Quote" button).
@@ -89,6 +95,9 @@ export default function GetQuoteModal({
     // source of truth, so the link is shareable + refresh-safe (no client
     // storage). Other categories keep the lead-capture confirmation.
     if (isMotor) {
+      const renewal = !values.isVehicleNew;
+      // Previous-policy details are optional — sent only if the user added
+      // them via the checkbox; we never block or auto-open the modal.
       const quoteInput: TwoWheelerQuoteInput = {
         category: chosenCat?.category ?? "",
         productCode: chosenCat?.productCode ?? "",
@@ -99,6 +108,8 @@ export default function GetQuoteModal({
         manufactureDate: values.manufactureDate ?? "",
         registrationDate: values.registrationDate ?? "",
         isVehicleNew: !!values.isVehicleNew,
+        // Sent only for an existing (renewal) vehicle.
+        ...(renewal && prevPolicy ? prevPolicy : {}),
       };
       onOpenChange(false);
       router.push(`/quotes?${encodeQuoteInput(quoteInput)}`);
@@ -112,19 +123,29 @@ export default function GetQuoteModal({
     if (!next) {
       setTimeout(() => {
         setStep("pick"); setChosen(null); reset();
+        setPrevPolicy(null); setPrevModalOpen(false);
       }, 300);
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto"
+        // Belt-and-suspenders: don't let interactions with the nested
+        // "Previous policy" modal bubble up and close this one.
+        onInteractOutside={(e) => { if (prevModalOpen) e.preventDefault(); }}
+        onEscapeKeyDown={(e) => { if (prevModalOpen) e.preventDefault(); }}
+      >
         <AnimatePresence mode="wait">
 
           {/* ── STEP 1: pick a plan ── */}
           {step === "pick" && (
             <motion.div key="pick" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
               <DialogHeader>
+                <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-linear-to-br from-brand to-violet shadow-md shadow-brand/25">
+                  <Sparkles className="h-6 w-6 text-white" strokeWidth={1.8} />
+                </span>
                 <DialogTitle>Which plan are you looking for?</DialogTitle>
                 <DialogDescription>We offer 5 plans — pick one and we&apos;ll find the best quote for you.</DialogDescription>
               </DialogHeader>
@@ -168,15 +189,18 @@ export default function GetQuoteModal({
           {step === "details" && chosenCat && (
             <motion.div key="details" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               <DialogHeader>
-                <p className="mb-1">
-                  <button
-                    type="button"
-                    onClick={() => { setStep("pick"); setChosen(null); }}
-                    className="text-xs font-semibold text-brand hover:underline"
-                  >
-                    ← Back
-                  </button>
-                </p>
+                <button
+                  type="button"
+                  onClick={() => { setStep("pick"); setChosen(null); }}
+                  className="mb-3 inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline"
+                >
+                  ← Back
+                </button>
+                {ChosenIcon && (
+                  <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-linear-to-br from-brand to-violet shadow-md shadow-brand/25">
+                    <ChosenIcon className="h-6 w-6 text-white" strokeWidth={1.8} />
+                  </span>
+                )}
                 <DialogTitle>{chosenCat.name}</DialogTitle>
                 <DialogDescription>Fill in a few details and we&apos;ll show you the best available quotes.</DialogDescription>
               </DialogHeader>
@@ -231,6 +255,53 @@ export default function GetQuoteModal({
                         <label htmlFor="isVehicleNew" className="text-xs font-bold text-ink-soft">Is Vehicle New?</label>
                       </div>
                     </div>
+
+                    {/* Existing (renewal) vehicle → collect previous-policy details in a dialog */}
+                    {isRenewal && (
+                      <div className="rounded-xl bg-paper p-4">
+                        <label className="flex cursor-pointer items-start gap-2.5">
+                          <input
+                            type="checkbox"
+                            checked={!!prevPolicy}
+                            onChange={(e) => {
+                              if (e.target.checked) setPrevModalOpen(true);
+                              else setPrevPolicy(null);
+                            }}
+                            className="mt-0.5 h-4 w-4 rounded border-line text-brand focus:ring-2 focus:ring-brand/20"
+                          />
+                          <span>
+                            <span className="text-xs font-bold text-ink">Is previous insurer known?</span>
+                            <span className="mt-0.5 block text-[0.7rem] text-ink-soft">
+                              Renewals need your previous policy — it unlocks your No Claim Bonus discount.
+                            </span>
+                          </span>
+                        </label>
+
+                        {prevPolicy && (
+                          <div className="mt-3 flex items-center justify-between rounded-lg border border-line bg-white px-3 py-2.5">
+                            <div className="min-w-0 text-xs">
+                              <p className="font-bold text-ink">
+                                {MOTOR_PREVIOUS_INSURERS.find((i) => i.code === prevPolicy.previousInsurerCode)?.name
+                                  ?? "Previous insurer"}
+                              </p>
+                              <p className="mt-0.5 text-ink-soft">
+                                Expires {prevPolicy.previousPolicyExpiryDate}
+                                {" · NCB "}
+                                {MOTOR_NCB.find((n) => n.value === prevPolicy.previousNoClaimBonus)?.label ?? "0%"}
+                                {prevPolicy.isClaimInLastYear ? " · Claim made" : ""}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setPrevModalOpen(true)}
+                              className="shrink-0 text-xs font-semibold text-brand hover:underline"
+                            >
+                              Edit
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </>
                 ) : (
                 <>
@@ -322,6 +393,15 @@ export default function GetQuoteModal({
           )}
 
         </AnimatePresence>
+
+        {/* Nested so Radix's dismiss-layer stack keeps it independent —
+            closing it must NOT close the quote modal. */}
+        <PreviousPolicyModal
+          open={prevModalOpen}
+          onOpenChange={setPrevModalOpen}
+          value={prevPolicy}
+          onSave={setPrevPolicy}
+        />
       </DialogContent>
     </Dialog>
   );

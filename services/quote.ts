@@ -72,6 +72,38 @@ export const MOTOR_DEDUCTIBLES: { value: string; label: string; digit: string }[
 function toVoluntaryDeductible(value: string): string | undefined {
   return MOTOR_DEDUCTIBLES.find((d) => d.value === value)?.digit;
 }
+
+/**
+ * Previous insurers for renewals. The `code` values are all verified to be
+ * accepted by Go Digit; the NAMES paired to them are best-effort and should
+ * be reconciled against Digit's official insurer master when available.
+ */
+export const MOTOR_PREVIOUS_INSURERS: { code: string; name: string }[] = [
+  { code: "103", name: "ICICI Lombard" },
+  { code: "106", name: "Bajaj Allianz" },
+  { code: "108", name: "HDFC ERGO" },
+  { code: "111", name: "TATA AIG" },
+  { code: "113", name: "New India Assurance" },
+  { code: "115", name: "Reliance General" },
+  { code: "121", name: "SBI General" },
+  { code: "122", name: "IFFCO Tokio" },
+  { code: "123", name: "Zurich Kotak General" },
+  { code: "125", name: "National Insurance" },
+  { code: "127", name: "United India" },
+  { code: "132", name: "Oriental Insurance" },
+  { code: "149", name: "Shriram General" },
+  { code: "150", name: "Go Digit" },
+];
+
+// No-claim-bonus tiers Digit accepts (enum → display %).
+export const MOTOR_NCB: { value: string; label: string }[] = [
+  { value: "ZERO",        label: "0%" },
+  { value: "TWENTY",      label: "20%" },
+  { value: "TWENTY_FIVE", label: "25%" },
+  { value: "THIRTY_FIVE", label: "35%" },
+  { value: "FORTY_FIVE",  label: "45%" },
+  { value: "FIFTY",       label: "50%" },
+];
 interface ProviderQuote {
   provider?: string;          // e.g. "DIGIT"
   premium?: number;           // gross premium as a number, e.g. 4030.88
@@ -105,6 +137,14 @@ export function toQuickQuotePayload(
     manufactureDate: input.manufactureDate || undefined,
     registrationDate: input.registrationDate || undefined,
   };
+
+  // Existing vehicle (renewal) → Digit requires the previous-policy block.
+  if (!input.isVehicleNew) {
+    payload.previousInsurerCode = input.previousInsurerCode || undefined;
+    payload.previousPolicyExpiryDate = input.previousPolicyExpiryDate || undefined;
+    payload.isClaimInLastYear = input.isClaimInLastYear ?? false;
+    if (input.previousNoClaimBonus) payload.previousNoClaimBonus = input.previousNoClaimBonus;
+  }
 
   // Re-pricing selections from the results-page filters → nested shape.
   if (filters) {
@@ -143,6 +183,13 @@ export function encodeQuoteInput(input: TwoWheelerQuoteInput): string {
     isVehicleNew: String(input.isVehicleNew),
   });
   if (input.subProductCode) p.set("subProductCode", input.subProductCode);
+  // Renewal (existing vehicle) → carry the previous-policy details too.
+  if (!input.isVehicleNew) {
+    if (input.previousInsurerCode) p.set("previousInsurerCode", input.previousInsurerCode);
+    if (input.previousPolicyExpiryDate) p.set("previousPolicyExpiryDate", input.previousPolicyExpiryDate);
+    if (input.previousNoClaimBonus) p.set("previousNoClaimBonus", input.previousNoClaimBonus);
+    if (input.isClaimInLastYear) p.set("isClaimInLastYear", "true");
+  }
   return p.toString();
 }
 
@@ -166,6 +213,10 @@ export function decodeQuoteInput(sp: URLSearchParams): TwoWheelerQuoteInput | nu
     manufactureDate: sp.get("manufactureDate") ?? "",
     registrationDate: sp.get("registrationDate") ?? "",
     isVehicleNew: sp.get("isVehicleNew") === "true",
+    previousInsurerCode: sp.get("previousInsurerCode") ?? undefined,
+    previousPolicyExpiryDate: sp.get("previousPolicyExpiryDate") ?? undefined,
+    isClaimInLastYear: sp.get("isClaimInLastYear") === "true",
+    previousNoClaimBonus: sp.get("previousNoClaimBonus") ?? undefined,
   };
 }
 
@@ -258,4 +309,101 @@ export async function fetchQuoteResults(
     quoteType: input.category.replace(/_/g, "-") as QuoteTabId,
     plans,
   };
+}
+
+/* ── Create quote (proposal / buy) ────────────────────────────────────── */
+
+/** Proposer + vehicle-identity details collected on the proposal page. */
+export interface ProposalForm {
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;            // YYYY-MM-DD
+  gender: string;                 // MALE | FEMALE
+  email: string;
+  mobile: string;                 // 10 digits
+  street: string;
+  city: string;
+  state: string;                  // Digit state code (e.g. "29")
+  pincode: string;
+  vehicleIdentificationNumber: string;  // chassis / VIN (required by Digit)
+  engineNumber: string;
+}
+
+function isoDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Assemble the full Go Digit create-quote (proposal) payload from the quote
+ * inputs + the proposal form. Policy period defaults to one year starting
+ * tomorrow. KYC uses a placeholder CKYC reference (a real flow would run the
+ * KYC step first); coverages default to a standard PA cover.
+ */
+export function buildCreateQuotePayload(
+  input: TwoWheelerQuoteInput,
+  enquiryId: string,
+  form: ProposalForm,
+): Record<string, unknown> {
+  const start = new Date();
+  start.setDate(start.getDate() + 1);
+  const end = new Date(start);
+  end.setFullYear(end.getFullYear() + 1);
+  end.setDate(end.getDate() - 1);
+
+  const payload: Record<string, unknown> = {
+    enquiryId,
+    category: input.category,
+    insuranceProductCode: input.productCode,
+    subInsuranceProductCode: input.subProductCode ?? "",
+    startDate: isoDate(start),
+    endDate: isoDate(end),
+    coverages: { personalAccident: { selection: true, insuredAmount: 1500000, coverTerm: 1 } },
+    vehicle: {
+      isVehicleNew: input.isVehicleNew,
+      vehicleMaincode: input.vehicleMainCode,
+      licensePlateNumber: input.licensePlateNumber,
+      vehicleIdentificationNumber: form.vehicleIdentificationNumber,
+      engineNumber: form.engineNumber || undefined,
+      manufactureDate: input.manufactureDate,
+      registrationDate: input.registrationDate,
+    },
+    proposer: {
+      firstName: form.firstName,
+      lastName: form.lastName,
+      dateOfBirth: form.dateOfBirth,
+      gender: form.gender,
+      email: form.email,
+      mobile: form.mobile,
+      address: { street: form.street, city: form.city, state: form.state, pincode: form.pincode },
+    },
+    // KYC is a separate step AFTER create-quote — sent empty here.
+    kyc: {},
+    pospInfo: { isPOSP: false },
+  };
+
+  // Existing vehicle → Digit requires the previous-insurer block. Only send
+  // fields that actually have a value — an empty expiry date ("") fails the
+  // backend's YYYY-MM-DD validation, so omit it entirely when blank.
+  if (!input.isVehicleNew) {
+    const known = !!input.previousInsurerCode;
+    const prev: Record<string, unknown> = {
+      isPreviousInsurerKnown: known,
+      isClaimInLastYear: input.isClaimInLastYear ?? false,
+    };
+    if (input.previousInsurerCode) prev.previousInsurerCode = input.previousInsurerCode;
+    if (input.previousPolicyExpiryDate) prev.previousPolicyExpiryDate = input.previousPolicyExpiryDate;
+    if (input.previousNoClaimBonus) prev.previousNoClaimBonus = input.previousNoClaimBonus;
+    payload.previousInsurer = prev;
+  }
+  return payload;
+}
+
+/** POST the proposal to the backend create-quote endpoint. */
+export async function createQuoteRequest(payload: Record<string, unknown>): Promise<unknown> {
+  try {
+    const { data } = await api.post("/user/quote/create-quote", payload);
+    return data;
+  } catch (err) {
+    throw new Error(extractApiError(err, "Could not create your policy. Please try again."));
+  }
 }
