@@ -398,12 +398,21 @@ export function buildCreateQuotePayload(
   return payload;
 }
 
-/** POST the proposal to the backend create-quote endpoint. */
+/**
+ * POST the proposal to the backend create-quote endpoint.
+ *
+ * The insurer's proposal call is slow (can take 20–30s), so we override the
+ * api client's default 15s timeout with a longer one — otherwise the client
+ * aborts a request that would have succeeded. If the insurer itself times out
+ * (504), surface a retry-friendly message.
+ */
 export async function createQuoteRequest(payload: Record<string, unknown>): Promise<unknown> {
   try {
-    const { data } = await api.post("/user/quote/create-quote", payload);
+    const { data } = await api.post("/user/quote/create-quote", payload, { timeout: 60_000 });
     return data;
   } catch (err) {
-    throw new Error(extractApiError(err, "Could not create your policy. Please try again."));
+    throw new Error(
+      extractApiError(err, "The insurer is taking longer than usual to respond. Please try again in a moment."),
+    );
   }
 }

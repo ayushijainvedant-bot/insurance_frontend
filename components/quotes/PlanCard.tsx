@@ -33,20 +33,8 @@ function InsurerAvatar({ name }: { name: string }) {
     .slice(0, 2)
     .toUpperCase();
 
-  // Cycle through brand colors based on name length
-  const colors = [
-    "bg-brand/10 text-brand",
-    "bg-violet/10 text-violet",
-    "bg-teal/10 text-teal",
-    "bg-coral/10 text-coral",
-    "bg-amber/10 text-amber",
-  ];
-  const color = colors[name.length % colors.length];
-
   return (
-    <span
-      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl font-display text-sm font-bold ${color}`}
-    >
+    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-brand to-violet font-display text-sm font-bold text-white shadow-md shadow-brand/25">
       {initials}
     </span>
   );
@@ -86,21 +74,25 @@ export default function PlanCard({ plan, index }: PlanCardProps) {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.07 }}
-      className={`relative rounded-2xl border bg-white shadow-sm transition-shadow hover:shadow-md ${
+      className={`group relative overflow-hidden rounded-2xl border shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg ${
         plan.isRecommended
-          ? "border-brand/40 ring-1 ring-brand/20"
-          : "border-line"
+          ? "border-brand/40 bg-linear-to-br from-brand/6 via-white to-violet/6 ring-1 ring-brand/15"
+          : "border-line bg-linear-to-br from-white to-paper"
       }`}
     >
+      {/* Soft decorative glow */}
+      <div className="pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full bg-brand/5 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 -left-16 h-44 w-44 rounded-full bg-violet/5 blur-3xl" />
+
       {/* Recommended ribbon */}
       {plan.isRecommended && (
-        <div className="absolute -top-px left-5 flex items-center gap-1 rounded-b-lg bg-linear-to-r from-brand to-violet px-3 py-1 text-[0.65rem] font-bold text-white">
+        <div className="absolute -top-px left-5 flex items-center gap-1 rounded-b-lg bg-linear-to-r from-brand to-violet px-3 py-1 text-[0.65rem] font-bold text-white shadow-sm shadow-brand/30">
           <Sparkles className="h-3 w-3" />
           Recommended
         </div>
       )}
 
-      <div className={`p-5 ${plan.isRecommended ? "pt-7" : ""}`}>
+      <div className={`relative p-5 ${plan.isRecommended ? "pt-7" : ""}`}>
         {/* ── TOP ROW: insurer + premium ── */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           {/* Insurer identity */}
@@ -131,9 +123,9 @@ export default function PlanCard({ plan, index }: PlanCardProps) {
         {/* ── METRICS STRIP ── */}
         <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
           {/* IDV */}
-          <div className="flex flex-col gap-0.5 rounded-xl bg-paper p-3">
+          <div className="flex flex-col gap-0.5 rounded-xl border border-line bg-white/70 p-3 backdrop-blur-sm">
             <span className="flex items-center gap-1 text-[0.6rem] font-bold uppercase tracking-wide text-ink-soft">
-              <Car className="h-3 w-3" /> IDV
+              <Car className="h-3 w-3 text-brand" /> IDV
             </span>
             <span className="font-display text-sm font-bold text-ink">
               ₹{fmt(plan.idvAmount)}
@@ -142,9 +134,9 @@ export default function PlanCard({ plan, index }: PlanCardProps) {
           </div>
 
           {/* Claim ratio */}
-          <div className="flex flex-col gap-0.5 rounded-xl bg-paper p-3">
+          <div className="flex flex-col gap-0.5 rounded-xl border border-line bg-white/70 p-3 backdrop-blur-sm">
             <span className="flex items-center gap-1 text-[0.6rem] font-bold uppercase tracking-wide text-ink-soft">
-              <Star className="h-3 w-3" /> Claim
+              <Star className="h-3 w-3 text-amber" /> Claim
             </span>
             <span
               className={`font-display text-sm font-bold ${
@@ -161,9 +153,9 @@ export default function PlanCard({ plan, index }: PlanCardProps) {
           </div>
 
           {/* Cashless garages */}
-          <div className="flex flex-col gap-0.5 rounded-xl bg-paper p-3">
+          <div className="flex flex-col gap-0.5 rounded-xl border border-line bg-white/70 p-3 backdrop-blur-sm">
             <span className="flex items-center gap-1 text-[0.6rem] font-bold uppercase tracking-wide text-ink-soft">
-              <Wrench className="h-3 w-3" /> Garages
+              <Wrench className="h-3 w-3 text-violet" /> Garages
             </span>
             <span className="font-display text-sm font-bold text-ink">
               {(plan.cashlessGarageCount / 1000).toFixed(1)}K+

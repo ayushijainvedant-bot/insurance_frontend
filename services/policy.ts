@@ -16,9 +16,13 @@ type Envelope = { data?: unknown };
 const inner = <T>(body: unknown): T => ((body as Envelope)?.data ?? {}) as T;
 
 export interface PolicyStatusResult {
-  policyStatus?: string;
+  policyStatus?: string;                 // INCOMPLETE | COMPLETE …
   policyNumber?: string;
-  kycStatus?: { kycVerificationStatus?: string };
+  kycStatus?: {
+    kycVerificationStatus?: string;      // NOT_DONE | IN_PROGRESS | DONE …
+    paymentStatus?: string;              // NOT_PAID | PAID — the payment source of truth
+    policyStatus?: string;
+  };
 }
 
 export async function getPolicyStatus(policyNumber: string): Promise<PolicyStatusResult> {
@@ -30,21 +34,72 @@ export async function getPolicyStatus(policyNumber: string): Promise<PolicyStatu
   }
 }
 
-/** Start KYC — returns the Digit KYC link the customer completes. */
-export async function startKyc(payload: Record<string, unknown>): Promise<{ kyc?: { link?: string } }> {
+/**
+ * KYC verification input. Policy number, date of birth and gender come from the
+ * successful create-quote step (never re-collected from the user); the customer
+ * only chooses the document types and uploads the proof files.
+ */
+export interface StartKycInput {
+  policyNumber: string;
+  dateOfBirth: string;                 // YYYY-MM-DD — from create-quote
+  gender: string;                      // MALE | FEMALE — from create-quote
+  policyHolderType?: string;           // defaults to INDIVIDUAL
+  idVerificationDocType: string;
+  addressVerificationDocType: string;
+  idVerificationDoc: File[];           // [front] or [front, back]
+  addressVerificationDoc: File[];      // [front] or [front, back]
+  successReturnURL?: string;
+  failureReturnURL?: string;
+}
+
+/**
+ * Start KYC — returns the Digit KYC link the customer completes.
+ *
+ * Sent as multipart/form-data: the text fields go as form fields (companyFlag +
+ * policyNumber nested inside the `queryParam` JSON field, which the backend
+ * flattens), and the proof documents are uploaded as files. The backend
+ * converts each file to a Base64 string and builds the Digit KYC payload.
+ */
+export async function startKyc(input: StartKycInput): Promise<{ kyc?: { link?: string } }> {
   try {
-    const { data } = await api.post("/user/policy/kyc", payload);
+    const fd = new FormData();
+    fd.append("queryParam", JSON.stringify({ companyFlag: "GI", policyNumber: input.policyNumber }));
+    fd.append("policyHolderType", input.policyHolderType ?? "INDIVIDUAL");
+    fd.append("dateOfBirth", input.dateOfBirth);
+    fd.append("gender", input.gender);
+    fd.append("idVerificationDocType", input.idVerificationDocType);
+    fd.append("addressVerificationDocType", input.addressVerificationDocType);
+    if (input.successReturnURL) fd.append("successReturnURL", input.successReturnURL);
+    if (input.failureReturnURL) fd.append("failureReturnURL", input.failureReturnURL);
+    input.idVerificationDoc.forEach((file) => fd.append("idVerificationDoc", file));
+    input.addressVerificationDoc.forEach((file) => fd.append("addressVerificationDoc", file));
+
+    // Override the api client's default `application/json` Content-Type — with a
+    // JSON content type axios serialises FormData to JSON (turning files into
+    // `{}`). Setting multipart/form-data makes axios send the raw FormData and
+    // the browser fills in the boundary.
+    const { data } = await api.post("/user/policy/kyc", fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
     return inner<{ kyc?: { link?: string } }>(data);
   } catch (err) {
     throw new Error(extractApiError(err, "KYC could not be started. Please try again."));
   }
 }
 
-/** Initiate payment — returns the Digit payment (dispatcher) link. */
-export async function initiatePayment(payload: Record<string, unknown>): Promise<{ dispatcherResponse?: string }> {
+export interface PaymentResult {
+  paymentLink?: string;       // Digit gateway URL the customer is redirected to
+  requestReference?: string;
+  digitPaymentId?: string;
+  premium?: number;
+  paymentType?: string;
+}
+
+/** Initiate payment — returns the Digit payment gateway link to redirect to. */
+export async function initiatePayment(payload: Record<string, unknown>): Promise<PaymentResult> {
   try {
     const { data } = await api.post("/user/policy/payment", payload);
-    return inner<{ dispatcherResponse?: string }>(data);
+    return inner<PaymentResult>(data);
   } catch (err) {
     throw new Error(extractApiError(err, "Payment could not be initiated. Please try again."));
   }
