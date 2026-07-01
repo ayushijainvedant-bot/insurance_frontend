@@ -285,7 +285,8 @@ export default function GetQuoteModal({
                                   ?? "Previous insurer"}
                               </p>
                               <p className="mt-0.5 text-ink-soft">
-                                Expires {prevPolicy.previousPolicyExpiryDate}
+                                Policy {prevPolicy.previousPolicyNumber}
+                                {" · Expires "}{prevPolicy.previousPolicyExpiryDate}
                                 {" · NCB "}
                                 {MOTOR_NCB.find((n) => n.value === prevPolicy.previousNoClaimBonus)?.label ?? "0%"}
                                 {prevPolicy.isClaimInLastYear ? " · Claim made" : ""}

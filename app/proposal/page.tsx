@@ -20,7 +20,7 @@ import {
   decodeQuoteInput, buildCreateQuotePayload, createQuoteRequest, type ProposalForm,
 } from "@/services/quote";
 import { getPolicyStatus, startKyc, initiatePayment, downloadPolicyPdf, type StartKycInput } from "@/services/policy";
-import type { TwoWheelerQuoteInput } from "@/types";
+import type { TwoWheelerQuoteInput, AuthUser } from "@/types";
 
 const field =
   "w-full rounded-xl border border-line bg-white/70 px-4 py-3 text-sm text-ink outline-none transition placeholder:text-ink-soft/60 focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10";
@@ -114,11 +114,15 @@ export default function ProposalPage() {
   const { user, ready } = useAuth();
   if (!ready) return <FullLoader />;
   if (!user) return <QuoteAuthGate />;
-  return <CheckoutContent userPhone={user.phone} />;
+  return <CheckoutContent user={user} />;
 }
 
-function CheckoutContent({ userPhone }: { userPhone: string | null }) {
+function CheckoutContent({ user }: { user: AuthUser }) {
   const router = useRouter();
+
+  // Split the user's full name into first + last for the proposer fields.
+  const [firstName, ...restName] = (user.name ?? "").trim().split(/\s+/).filter(Boolean);
+  const lastName = restName.join(" ");
 
   const [ctx, setCtx] = useState<
     { input: TwoWheelerQuoteInput; enquiryId: string; premium: number; insurer: string } | null
@@ -134,7 +138,16 @@ function CheckoutContent({ userPhone }: { userPhone: string | null }) {
   const [error, setError] = useState<string | null>(null);
 
   const proposal = useForm<ProposalForm>({
-    defaultValues: { gender: "MALE", mobile: userPhone?.replace(/^\+?91/, "") ?? "" },
+    // Prefill from the signed-in user's profile. Name is split into first/last;
+    // DOB (YYYY-MM-DD) and email map straight across.
+    defaultValues: {
+      gender: "MALE",
+      firstName: firstName ?? "",
+      lastName: lastName,
+      email: user.email ?? "",
+      dateOfBirth: user.dob ?? "",
+      mobile: user.phone?.replace(/^\+?91/, "") ?? "",
+    },
   });
   // KYC identity/address proof. Policy number, DOB and gender are NOT collected
   // here — they come from create-quote (see kycPrefill) and are sent automatically.

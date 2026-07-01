@@ -71,3 +71,16 @@ export function extractApiError(error: unknown, fallback: string): string {
   }
   return fallback;
 }
+
+/**
+ * Pull the per-field validation map out of a 400 response. The backend shape
+ * is `{ message: "Validation failed", errors: { field: reason } }`, so a form
+ * can highlight each offending field instead of only showing a banner.
+ */
+export function extractFieldErrors(error: unknown): Record<string, string> | undefined {
+  if (axios.isAxiosError(error)) {
+    const errs = (error.response?.data as { errors?: Record<string, string> } | undefined)?.errors;
+    if (errs && typeof errs === "object") return errs;
+  }
+  return undefined;
+}

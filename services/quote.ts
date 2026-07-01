@@ -74,25 +74,36 @@ function toVoluntaryDeductible(value: string): string | undefined {
 }
 
 /**
- * Previous insurers for renewals. The `code` values are all verified to be
- * accepted by Go Digit; the NAMES paired to them are best-effort and should
- * be reconciled against Digit's official insurer master when available.
+ * Previous insurers for renewals — the motor previous-insurer master (code →
+ * name) sourced from Digit's official list.
  */
 export const MOTOR_PREVIOUS_INSURERS: { code: string; name: string }[] = [
-  { code: "103", name: "ICICI Lombard" },
-  { code: "106", name: "Bajaj Allianz" },
-  { code: "108", name: "HDFC ERGO" },
-  { code: "111", name: "TATA AIG" },
-  { code: "113", name: "New India Assurance" },
-  { code: "115", name: "Reliance General" },
-  { code: "121", name: "SBI General" },
-  { code: "122", name: "IFFCO Tokio" },
-  { code: "123", name: "Zurich Kotak General" },
-  { code: "125", name: "National Insurance" },
-  { code: "127", name: "United India" },
-  { code: "132", name: "Oriental Insurance" },
-  { code: "149", name: "Shriram General" },
-  { code: "150", name: "Go Digit" },
+  { code: "058", name: "National Insurance Co. Ltd." },
+  { code: "102", name: "Royal Sundaram General Insurance Co. Limited" },
+  { code: "103", name: "Reliance General Insurance Co. Ltd." },
+  { code: "106", name: "IFFCO Tokio General Insurance Co. Ltd." },
+  { code: "108", name: "Tata AIG General Insurance Co. Ltd." },
+  { code: "113", name: "Bajaj Allianz General Insurance Co. Ltd." },
+  { code: "115", name: "ICICI Lombard General Insurance Co. Ltd." },
+  { code: "123", name: "Cholamandalam MS General Insurance Co. Ltd." },
+  { code: "125", name: "HDFC ERGO General Insurance Co. Ltd." },
+  { code: "132", name: "Future Generali India Insurance Company Limited" },
+  { code: "134", name: "Universal Sompo General Insurance Co. Ltd." },
+  { code: "137", name: "Shriram General Insurance Company Limited" },
+  { code: "139", name: "Bharti AXA General Insurance Company Limited" },
+  { code: "141", name: "Raheja QBE General Insurance Company Limited" },
+  { code: "144", name: "SBI General Insurance Company Limited" },
+  { code: "149", name: "Magma HDI General Insurance Company Limited" },
+  { code: "150", name: "Liberty Videocon General Insurance Company Limited" },
+  { code: "152", name: "Kotak Mahindra General Insurance Company Limited" },
+  { code: "155", name: "Navi General Insurance Limited" },
+  { code: "158", name: "Go Digit General Insurance Limited" },
+  { code: "159", name: "Acko General Insurance Limited" },
+  { code: "161", name: "Zuno General Insurance Company Limited" },
+  { code: "190", name: "The New India Assurance Co. Ltd." },
+  { code: "545", name: "United India Insurance Co. Ltd." },
+  { code: "556", name: "The Oriental Insurance Co. Ltd." },
+  { code: "XXX", name: "DHFL General Insurance Limited" },
 ];
 
 // No-claim-bonus tiers Digit accepts (enum → display %).
@@ -141,6 +152,7 @@ export function toQuickQuotePayload(
   // Existing vehicle (renewal) → Digit requires the previous-policy block.
   if (!input.isVehicleNew) {
     payload.previousInsurerCode = input.previousInsurerCode || undefined;
+    payload.previousPolicyNumber = input.previousPolicyNumber || undefined;
     payload.previousPolicyExpiryDate = input.previousPolicyExpiryDate || undefined;
     payload.isClaimInLastYear = input.isClaimInLastYear ?? false;
     if (input.previousNoClaimBonus) payload.previousNoClaimBonus = input.previousNoClaimBonus;
@@ -186,6 +198,7 @@ export function encodeQuoteInput(input: TwoWheelerQuoteInput): string {
   // Renewal (existing vehicle) → carry the previous-policy details too.
   if (!input.isVehicleNew) {
     if (input.previousInsurerCode) p.set("previousInsurerCode", input.previousInsurerCode);
+    if (input.previousPolicyNumber) p.set("previousPolicyNumber", input.previousPolicyNumber);
     if (input.previousPolicyExpiryDate) p.set("previousPolicyExpiryDate", input.previousPolicyExpiryDate);
     if (input.previousNoClaimBonus) p.set("previousNoClaimBonus", input.previousNoClaimBonus);
     if (input.isClaimInLastYear) p.set("isClaimInLastYear", "true");
@@ -214,6 +227,7 @@ export function decodeQuoteInput(sp: URLSearchParams): TwoWheelerQuoteInput | nu
     registrationDate: sp.get("registrationDate") ?? "",
     isVehicleNew: sp.get("isVehicleNew") === "true",
     previousInsurerCode: sp.get("previousInsurerCode") ?? undefined,
+    previousPolicyNumber: sp.get("previousPolicyNumber") ?? undefined,
     previousPolicyExpiryDate: sp.get("previousPolicyExpiryDate") ?? undefined,
     isClaimInLastYear: sp.get("isClaimInLastYear") === "true",
     previousNoClaimBonus: sp.get("previousNoClaimBonus") ?? undefined,
@@ -391,6 +405,7 @@ export function buildCreateQuotePayload(
       isClaimInLastYear: input.isClaimInLastYear ?? false,
     };
     if (input.previousInsurerCode) prev.previousInsurerCode = input.previousInsurerCode;
+    if (input.previousPolicyNumber) prev.previousPolicyNumber = input.previousPolicyNumber;
     if (input.previousPolicyExpiryDate) prev.previousPolicyExpiryDate = input.previousPolicyExpiryDate;
     if (input.previousNoClaimBonus) prev.previousNoClaimBonus = input.previousNoClaimBonus;
     payload.previousInsurer = prev;

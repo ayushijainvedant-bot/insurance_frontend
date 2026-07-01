@@ -14,6 +14,7 @@ const field =
 
 export interface PreviousPolicy {
   previousInsurerCode: string;
+  previousPolicyNumber: string;
   previousPolicyExpiryDate: string;
   previousNoClaimBonus: string;
   isClaimInLastYear: boolean;
@@ -31,6 +32,7 @@ export default function PreviousPolicyModal({
   onSave: (v: PreviousPolicy) => void;
 }) {
   const [insurer, setInsurer] = useState("");
+  const [policyNumber, setPolicyNumber] = useState("");
   const [expiry, setExpiry] = useState("");
   const [ncb, setNcb] = useState("ZERO");
   const [claim, setClaim] = useState(false);
@@ -42,6 +44,7 @@ export default function PreviousPolicyModal({
     /* eslint-disable react-hooks/set-state-in-effect -- seed fields from the
        saved value when the dialog opens; intentional. */
     setInsurer(value?.previousInsurerCode ?? "");
+    setPolicyNumber(value?.previousPolicyNumber ?? "");
     setExpiry(value?.previousPolicyExpiryDate ?? "");
     setNcb(value?.previousNoClaimBonus ?? "ZERO");
     setClaim(value?.isClaimInLastYear ?? false);
@@ -50,12 +53,13 @@ export default function PreviousPolicyModal({
   }, [open, value]);
 
   function handleSave() {
-    if (!insurer || !expiry) {
-      setErr("Please select your insurer and policy expiry date.");
+    if (!insurer || !policyNumber.trim() || !expiry) {
+      setErr("Please enter your insurer, previous policy number and expiry date.");
       return;
     }
     onSave({
       previousInsurerCode: insurer,
+      previousPolicyNumber: policyNumber.trim(),
       previousPolicyExpiryDate: expiry,
       // A claim last year resets the NCB to zero.
       previousNoClaimBonus: claim ? "ZERO" : ncb,
@@ -78,15 +82,25 @@ export default function PreviousPolicyModal({
         </DialogHeader>
 
         <div className="space-y-4 px-6 pb-6">
+          <div>
+            <label className="mb-1.5 block text-xs font-bold text-ink-soft">Previous Insurer</label>
+            <select className={field} value={insurer} onChange={(e) => setInsurer(e.target.value)}>
+              <option value="" disabled>Select insurer</option>
+              {MOTOR_PREVIOUS_INSURERS.map((i) => (
+                <option key={i.code} value={i.code}>{i.name}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-xs font-bold text-ink-soft">Previous Insurer</label>
-              <select className={field} value={insurer} onChange={(e) => setInsurer(e.target.value)}>
-                <option value="" disabled>Select insurer</option>
-                {MOTOR_PREVIOUS_INSURERS.map((i) => (
-                  <option key={i.code} value={i.code}>{i.name}</option>
-                ))}
-              </select>
+              <label className="mb-1.5 block text-xs font-bold text-ink-soft">Previous Policy Number</label>
+              <input
+                className={field}
+                value={policyNumber}
+                onChange={(e) => setPolicyNumber(e.target.value)}
+                placeholder="e.g. D700739276"
+              />
             </div>
             <div>
               <label className="mb-1.5 block text-xs font-bold text-ink-soft">Policy Expiry Date</label>

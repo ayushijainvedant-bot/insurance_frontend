@@ -19,6 +19,10 @@ const ICON_BG: Record<string, string> = {
   amber: "bg-amber/10  text-amber",
   violet:"bg-violet/10 text-violet",
 };
+// Solid top-accent bar per category colour.
+const ACCENT: Record<string, string> = {
+  teal: "bg-teal", brand: "bg-brand", coral: "bg-coral", amber: "bg-amber", violet: "bg-violet",
+};
 
 export default function CategoryGrid() {
   const { categories, loading, error } = useProducts();
@@ -87,9 +91,10 @@ export default function CategoryGrid() {
                 viewport={{ once: true, margin: "-30px" }}
                 transition={{ duration: 0.3, delay: i * 0.07 }}
                 whileHover={{ y: -5 }}
-                className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white text-left shadow-sm transition-shadow hover:shadow-lg hover:shadow-brand/8"
+                className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white text-left shadow-sm transition-all hover:border-brand/30 hover:shadow-lg hover:shadow-brand/10"
               >
-                {/* badge */}
+                {/* colour accent + badge */}
+                <span className={`h-1 w-full ${ACCENT[cat.badgeColor]}`} />
                 <span className={`px-3 py-1.5 text-center text-[0.7rem] font-bold ${BADGE[cat.badgeColor]}`}>
                   {cat.badge}
                 </span>

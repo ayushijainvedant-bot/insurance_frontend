@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Menu, X, Phone, ShieldCheck, HeartPulse, Bike, Car, TrendingUp, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import SignInModal from "@/components/SignInModal";
 import UserMenu from "@/components/UserMenu";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuoteModal } from "@/hooks/useQuoteModal";
@@ -44,7 +43,6 @@ function LogoMark() {
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [productsOpen, setProductsOpen] = useState(false);
-  const [signInOpen, setSignInOpen] = useState(false);
   const { user, ready, signOut } = useAuth();
   const { openQuote } = useQuoteModal();
 
@@ -61,7 +59,7 @@ export default function Navbar() {
   );
 
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-white/95 backdrop-blur">
+    <header className="sticky top-0 z-50 border-b border-line/70 bg-white/80 backdrop-blur-xl">
       <div className="mx-auto flex max-w-295 items-center justify-between gap-4 px-4 py-3 sm:px-6">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5">
@@ -79,7 +77,7 @@ export default function Navbar() {
             onMouseEnter={() => setProductsOpen(true)}
             onMouseLeave={() => setProductsOpen(false)}
           >
-            <button className="flex items-center gap-1 text-sm font-semibold text-ink/80 transition-colors hover:text-brand">
+            <button className={`relative flex items-center gap-1 text-sm font-semibold transition-colors after:absolute after:-bottom-1.5 after:left-0 after:h-0.5 after:rounded-full after:bg-linear-to-r after:from-brand after:to-violet after:transition-all ${productsOpen ? "text-brand after:w-full" : "text-ink/80 hover:text-brand after:w-0"}`}>
               Our Insurance
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${productsOpen ? "rotate-180" : ""}`} />
             </button>
@@ -115,7 +113,7 @@ export default function Navbar() {
 
           {NAV.map((l) => (
             <a key={l.label} href={l.href}
-              className="text-sm font-semibold text-ink/80 transition-colors hover:text-brand">
+              className="relative text-sm font-semibold text-ink/80 transition-colors hover:text-brand after:absolute after:-bottom-1.5 after:left-0 after:h-0.5 after:w-0 after:rounded-full after:bg-linear-to-r after:from-brand after:to-violet after:transition-all hover:after:w-full">
               {l.label}
             </a>
           ))}
@@ -123,15 +121,20 @@ export default function Navbar() {
 
         {/* Right actions */}
         <div className="hidden items-center gap-2.5 lg:flex">
-          <a href="#" className="flex items-center gap-1.5 text-sm font-semibold text-ink/70 hover:text-brand">
-            <Phone className="h-3.5 w-3.5" /> 1800-XXX-XXXX
+          <a href="#" className="flex items-center gap-1.5 rounded-full border border-line bg-paper/70 px-3 py-1.5 text-xs font-bold text-ink/70 transition hover:border-brand/30 hover:text-brand">
+            <Phone className="h-3.5 w-3.5 text-brand" /> 1800-XXX-XXXX
           </a>
           {/* Auth slot: the signed-out "Sign in" button is the default so
               SSR and the first client render agree (no hydration mismatch);
               once `ready` confirms a stored session we swap to the chip. */}
           {ready && user
             ? <UserMenu user={user} onSignOut={signOut} />
-            : <Button variant="ghost" size="sm" onClick={() => setSignInOpen(true)}>Sign in</Button>
+            : (
+              <>
+                <Button asChild variant="ghost" size="sm"><Link href="/login">Sign in</Link></Button>
+                <Button asChild variant="outline" size="sm"><Link href="/signup">Create account</Link></Button>
+              </>
+            )
           }
           {/* ★ the new "Get Best Quote" button lives here */}
           {quoteButton}
@@ -183,14 +186,14 @@ export default function Navbar() {
                 {ready && user
                   ? <UserMenu user={user} onSignOut={signOut} />
                   : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full text-ink"
-                      onClick={() => { setMobileOpen(false); setSignInOpen(true); }}
-                    >
-                      Sign in
-                    </Button>
+                    <>
+                      <Button asChild variant="outline" size="sm" className="w-full">
+                        <Link href="/login" onClick={() => setMobileOpen(false)}>Sign in</Link>
+                      </Button>
+                      <Button asChild variant="solid" size="sm" className="w-full">
+                        <Link href="/signup" onClick={() => setMobileOpen(false)}>Create account</Link>
+                      </Button>
+                    </>
                   )
                 }
               </div>
@@ -199,8 +202,6 @@ export default function Navbar() {
         )}
       </AnimatePresence>
 
-      {/* One controlled sign-in modal shared by the desktop + mobile triggers */}
-      <SignInModal open={signInOpen} onOpenChange={setSignInOpen} />
     </header>
   );
 }

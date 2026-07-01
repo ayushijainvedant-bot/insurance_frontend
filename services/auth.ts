@@ -1,23 +1,37 @@
-import { api, extractApiError } from "@/services/api";
+import { api, extractApiError, extractFieldErrors } from "@/services/api";
 import type { RequestOtpResult, VerifyOtpResult } from "@/types";
 
 /**
  * Auth service — the only module that knows the backend's auth contract.
  * Components/hooks call these functions; they never touch axios directly.
  *
- * Backend endpoints (see insurance-backend src/routes/front/auth.routes.ts):
- *   POST /user/auth/login-otp  { phone }        -> { message, devOtp? }
- *   POST /user/auth/otp-verify { phone, otp }   -> { message, user, token }
+ * Backend endpoints (base http://localhost:4000/api/user/auth):
+ *   POST /user/auth/signup     { name, phone, email, dob?, password } -> 201 { user, token }
+ *   POST /user/auth/login      { email, password }                    -> { user, token }
+ *   POST /user/auth/login-otp  { phone }                              -> { message, devOtp? }
+ *   POST /user/auth/otp-verify { phone, otp }                         -> { message, user, token }
  *
  * Both reject with an `AuthError` carrying a user-facing message so the
  * UI can render auth-failure states without parsing raw axios errors.
  */
 
 export class AuthError extends Error {
-  constructor(message: string) {
+  /** Per-field validation reasons from a 400 (e.g. { email: "already in use" }). */
+  fields?: Record<string, string>;
+  constructor(message: string, fields?: Record<string, string>) {
     super(message);
     this.name = "AuthError";
+    this.fields = fields;
   }
+}
+
+/** Details a new customer provides on the signup screen. */
+export interface SignupInput {
+  name: string;
+  mobile: string;          // 10-digit or E.164 — normalised via toE164
+  email: string;
+  dob?: string;            // YYYY-MM-DD (optional)
+  password: string;
 }
 
 /**
@@ -30,6 +44,54 @@ export function toE164(mobile: string): string {
   if (mobile.trim().startsWith("+")) return `+${digits}`;
   // Assume an Indian number when no country code is supplied.
   return digits.length === 10 ? `+91${digits}` : `+${digits}`;
+}
+
+/** Create a new account. Returns the signed-in user + token (backend 201). */
+export async function signup(input: SignupInput): Promise<VerifyOtpResult> {
+  try {
+    const { data } = await api.post<VerifyOtpResult & { message?: string }>(
+      "/user/auth/signup",
+      {
+        name: input.name.trim(),
+        phone: toE164(input.mobile),
+        email: input.email.trim(),
+        ...(input.dob ? { dob: input.dob } : {}),
+        password: input.password,
+      },
+    );
+    if (!data?.token || !data?.user) {
+      throw new AuthError("Unexpected response from server. Please try again.");
+    }
+    return { user: data.user, token: data.token };
+  } catch (err) {
+    if (err instanceof AuthError) throw err;
+    // 400 → validation / duplicate email or phone; carry field reasons through.
+    throw new AuthError(
+      extractApiError(err, "Could not create your account. Please try again."),
+      extractFieldErrors(err),
+    );
+  }
+}
+
+/** Email + password login. Returns the signed-in user + token. */
+export async function loginWithPassword(email: string, password: string): Promise<VerifyOtpResult> {
+  try {
+    const { data } = await api.post<VerifyOtpResult & { message?: string }>(
+      "/user/auth/login",
+      { email: email.trim(), password },
+    );
+    if (!data?.token || !data?.user) {
+      throw new AuthError("Unexpected response from server. Please try again.");
+    }
+    return { user: data.user, token: data.token };
+  } catch (err) {
+    if (err instanceof AuthError) throw err;
+    // 401 → invalid credentials.
+    throw new AuthError(
+      extractApiError(err, "Incorrect email or password."),
+      extractFieldErrors(err),
+    );
+  }
 }
 
 /** Step 1 — request an OTP for a mobile number. */

@@ -96,6 +96,7 @@ export interface TwoWheelerQuoteInput {
   // Previous-policy details — required by Digit for an existing (renewal)
   // vehicle (isVehicleNew = false); omitted for a brand-new vehicle.
   previousInsurerCode?: string;
+  previousPolicyNumber?: string;
   previousPolicyExpiryDate?: string;
   isClaimInLastYear?: boolean;
   previousNoClaimBonus?: string;
@@ -121,6 +122,7 @@ export interface QuickQuotePayload {
   vehicleIDV?: number | null;
   // Required by the backend only for an existing vehicle (isVehicleNew=false).
   previousInsurerCode?: string;
+  previousPolicyNumber?: string;
   previousPolicyExpiryDate?: string;
   isClaimInLastYear?: boolean;
   previousNoClaimBonus?: string;
@@ -150,8 +152,10 @@ export type UserRole = "customer" | "agent" | "admin" | "ops";
 
 export interface AuthUser {
   id: string;                 // BIGSERIAL → serialized as a string
+  name?: string | null;
   email: string | null;
   phone: string | null;       // E.164, e.g. "+919876543210"
+  dob?: string | null;        // YYYY-MM-DD
   role: UserRole;
   isActive: boolean;
   createdAt: string;          // ISO timestamp
