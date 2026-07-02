@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { useForm } from "react-hook-form";
-import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import { useForm, useWatch } from "react-hook-form";
+import { CheckCircle2, Loader2, Sparkles, ArrowRight, Hash, Car, MapPin, Calendar } from "lucide-react";
 
 import {
   Dialog, DialogContent,
@@ -17,13 +17,16 @@ import PreviousPolicyModal, { type PreviousPolicy } from "@/components/PreviousP
 import type { QuoteTabId, TwoWheelerQuoteInput } from "@/types";
 
 const input =
-  "w-full rounded-lg border border-line bg-paper px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20";
-const BADGE: Record<string, string> = {
-  teal: "border-teal/40 bg-teal/8 text-teal",
-  brand:"border-brand/40 bg-brand/8 text-brand",
-  coral:"border-coral/40 bg-coral/8 text-coral",
-  amber:"border-amber/40 bg-amber/8 text-amber",
-  violet:"border-violet/40 bg-violet/8 text-violet",
+  "w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-ink-soft/60 focus:border-brand focus:ring-4 focus:ring-brand/10";
+const inputIcon =
+  "w-full rounded-xl border border-line bg-white py-2.5 pl-10 pr-3.5 text-sm text-ink outline-none transition placeholder:text-ink-soft/60 focus:border-brand focus:ring-4 focus:ring-brand/10";
+// Gradient for each plan's icon badge, keyed by the category's brand colour.
+const ICON_GRAD: Record<string, string> = {
+  teal:  "from-teal to-brand",
+  brand: "from-brand to-violet",
+  coral: "from-coral to-rose-500",
+  amber: "from-amber to-orange-500",
+  violet:"from-violet to-brand",
 };
 
 interface FormValues {
@@ -56,7 +59,7 @@ export default function GetQuoteModal({
   const [chosen, setChosen] = useState<QuoteTabId | null>(null);
   const [prevPolicy, setPrevPolicy] = useState<PreviousPolicy | null>(null);
   const [prevModalOpen, setPrevModalOpen] = useState(false);
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<FormValues>();
+  const { register, handleSubmit, reset, control, formState: { errors } } = useForm<FormValues>();
   const { categories, loading, error } = useProducts();
   const router = useRouter();
 
@@ -65,7 +68,8 @@ export default function GetQuoteModal({
   // Two- and four-wheeler share the motor vehicle form + quick-quote API.
   const isMotor = chosen === "two-wheeler" || chosen === "four-wheeler";
   // Existing (renewal) vehicle needs previous-policy details.
-  const isRenewal = isMotor && !watch("isVehicleNew");
+  const isVehicleNew = useWatch({ control, name: "isVehicleNew" });
+  const isRenewal = isMotor && !isVehicleNew;
 
   // When opened, jump straight to a preselected plan's form (card click) or
   // start at the plan picker (the navbar "Get Best Quote" button).
@@ -99,9 +103,8 @@ export default function GetQuoteModal({
       // Previous-policy details are optional — sent only if the user added
       // them via the checkbox; we never block or auto-open the modal.
       const quoteInput: TwoWheelerQuoteInput = {
+        productId: chosenCat?.productId ?? "",
         category: chosenCat?.category ?? "",
-        productCode: chosenCat?.productCode ?? "",
-        subProductCode: chosenCat?.subProductCode ?? null,
         vehicleMainCode: values.vehicleMainCode ?? "",
         licensePlateNumber: values.licensePlateNumber ?? "",
         pincode: values.pincode ?? "",
@@ -165,18 +168,43 @@ export default function GetQuoteModal({
               <div className="grid grid-cols-1 gap-3 px-6 pb-6 sm:grid-cols-2">
                 {categories.map((cat) => {
                   const Icon = cat.icon;
+                  // No insurer offers this product yet → show it, but disabled.
+                  const disabled = !cat.isQuotable;
                   return (
                     <button
                       key={cat.id}
                       type="button"
+                      disabled={disabled}
                       onClick={() => pickPlan(cat.id as QuoteTabId)}
-                      className={`flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${BADGE[cat.badgeColor]}`}
+                      className={`group relative flex items-center gap-3 overflow-hidden rounded-2xl border p-4 text-left transition-all ${
+                        disabled
+                          ? "cursor-not-allowed border-line bg-paper/50"
+                          : "border-line bg-white hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-lg hover:shadow-brand/10"
+                      }`}
                     >
-                      <Icon className="mt-0.5 h-5 w-5 shrink-0" strokeWidth={1.8} />
-                      <div>
-                        <p className="text-sm font-bold">{cat.name}</p>
-                        <p className="mt-0.5 text-xs opacity-75">{cat.tagline}</p>
+                      <span
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-linear-to-br shadow-md ${ICON_GRAD[cat.badgeColor]} ${
+                          disabled ? "opacity-45 grayscale" : "shadow-brand/20"
+                        }`}
+                      >
+                        <Icon className="h-5 w-5 text-white" strokeWidth={1.9} />
+                      </span>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <p className={`text-sm font-bold ${disabled ? "text-ink-soft" : "text-ink"}`}>{cat.name}</p>
+                          {disabled && (
+                            <span className="rounded-full bg-ink/8 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase tracking-wide text-ink-soft">
+                              Coming soon
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-0.5 text-xs text-ink-soft">{cat.tagline}</p>
                       </div>
+
+                      {!disabled && (
+                        <ArrowRight className="h-4 w-4 shrink-0 text-ink-soft transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
+                      )}
                     </button>
                   );
                 })}
@@ -209,56 +237,49 @@ export default function GetQuoteModal({
                 {isMotor ? (
                   <>
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="mb-1.5 block text-xs font-bold text-ink-soft">Vehicle Main Code</label>
-                        <input className={input} placeholder="e.g. 20102"
+                      <IconField label="Vehicle Main Code" icon={Hash} error={errors.vehicleMainCode?.message}>
+                        <input className={inputIcon} placeholder="e.g. 20102"
                           {...register("vehicleMainCode", { required: "Required" })} />
-                        {errors.vehicleMainCode && <p className="mt-1 text-xs text-coral">{errors.vehicleMainCode.message}</p>}
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-xs font-bold text-ink-soft">License Plate Number</label>
-                        <input className={input} placeholder="BR-01-AB-1234"
+                      </IconField>
+                      <IconField label="License Plate Number" icon={Car} error={errors.licensePlateNumber?.message}>
+                        <input className={inputIcon} placeholder="BR-01-AB-1234"
                           {...register("licensePlateNumber", { required: "Required" })} />
-                        {errors.licensePlateNumber && <p className="mt-1 text-xs text-coral">{errors.licensePlateNumber.message}</p>}
-                      </div>
+                      </IconField>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="mb-1.5 block text-xs font-bold text-ink-soft">Pincode</label>
-                        <input inputMode="numeric" maxLength={6} className={input} placeholder="e.g. 800001"
+                      <IconField label="Pincode" icon={MapPin} error={errors.pincode?.message}>
+                        <input inputMode="numeric" maxLength={6} className={inputIcon} placeholder="e.g. 800001"
                           {...register("pincode", {
                             required: "Required",
                             pattern: { value: /^\d{6}$/, message: "Enter a valid 6-digit pincode" },
                           })} />
-                        {errors.pincode && <p className="mt-1 text-xs text-coral">{errors.pincode.message}</p>}
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-xs font-bold text-ink-soft">Manufacture Date</label>
-                        <input type="date" className={input}
+                      </IconField>
+                      <IconField label="Manufacture Date" icon={Calendar} error={errors.manufactureDate?.message}>
+                        <input type="date" className={inputIcon}
                           {...register("manufactureDate", { required: "Required" })} />
-                        {errors.manufactureDate && <p className="mt-1 text-xs text-coral">{errors.manufactureDate.message}</p>}
-                      </div>
+                      </IconField>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="mb-1.5 block text-xs font-bold text-ink-soft">Registration Date</label>
-                        <input type="date" className={input}
+                      <IconField label="Registration Date" icon={Calendar} error={errors.registrationDate?.message}>
+                        <input type="date" className={inputIcon}
                           {...register("registrationDate", { required: "Required" })} />
-                        {errors.registrationDate && <p className="mt-1 text-xs text-coral">{errors.registrationDate.message}</p>}
-                      </div>
-                      <div className="flex items-center gap-2 pt-6">
-                        <input id="isVehicleNew" type="checkbox"
-                          className="h-4 w-4 rounded border-line text-brand focus:ring-2 focus:ring-brand/20"
-                          {...register("isVehicleNew")} />
-                        <label htmlFor="isVehicleNew" className="text-xs font-bold text-ink-soft">Is Vehicle New?</label>
+                      </IconField>
+                      <div className="flex items-end">
+                        <label htmlFor="isVehicleNew"
+                          className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-line bg-white px-3.5 py-2.5 transition hover:border-brand/40">
+                          <span className="text-xs font-bold text-ink">Is Vehicle New?</span>
+                          <input id="isVehicleNew" type="checkbox"
+                            className="h-4 w-4 rounded border-line text-brand focus:ring-2 focus:ring-brand/20"
+                            {...register("isVehicleNew")} />
+                        </label>
                       </div>
                     </div>
 
                     {/* Existing (renewal) vehicle → collect previous-policy details in a dialog */}
                     {isRenewal && (
-                      <div className="rounded-xl bg-paper p-4">
+                      <div className="rounded-xl border border-brand/15 bg-linear-to-br from-brand/5 to-white p-4">
                         <label className="flex cursor-pointer items-start gap-2.5">
                           <input
                             type="checkbox"
@@ -353,17 +374,19 @@ export default function GetQuoteModal({
                 )}
 
                 {/* Feature highlights */}
-                <div className="rounded-xl bg-paper p-4">
-                  <p className="mb-2 text-xs font-bold text-ink">What you get with {chosenCat.name}:</p>
+                <div className="rounded-xl border border-teal/20 bg-linear-to-br from-teal/8 to-white p-4">
+                  <p className="mb-2 flex items-center gap-1.5 text-xs font-bold text-ink">
+                    <Sparkles className="h-3.5 w-3.5 text-teal" /> What you get with {chosenCat.name}
+                  </p>
                   {chosenCat.features.map((f) => (
-                    <p key={f} className="mt-1 flex items-center gap-2 text-xs text-ink-soft">
+                    <p key={f} className="mt-1.5 flex items-center gap-2 text-xs text-ink-soft">
                       <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-teal" /> {f}
                     </p>
                   ))}
                 </div>
 
-                <Button type="submit" className="w-full bg-linear-to-r from-brand to-violet text-white">
-                  Show Me the Best Quotes →
+                <Button type="submit" className="w-full gap-1.5 bg-linear-to-r from-brand to-violet py-5 text-white shadow-lg shadow-brand/25 transition hover:opacity-90">
+                  <Sparkles className="h-4 w-4" /> Show Me the Best Quotes <ArrowRight className="h-4 w-4" />
                 </Button>
                 <p className="text-center text-[0.7rem] text-ink-soft">
                   No spam. Your data is encrypted and never sold.
@@ -405,5 +428,26 @@ export default function GetQuoteModal({
         />
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Labelled field with a leading icon inside the input. */
+function IconField({
+  label, icon: Icon, error, children,
+}: {
+  label: string;
+  icon: React.ElementType;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-xs font-bold text-ink-soft">{label}</label>
+      <div className="relative">
+        <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand/60" strokeWidth={1.9} />
+        {children}
+      </div>
+      {error && <p className="mt-1 text-xs text-coral">{error}</p>}
+    </div>
   );
 }

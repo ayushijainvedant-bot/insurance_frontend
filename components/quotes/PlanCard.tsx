@@ -65,6 +65,8 @@ export default function PlanCard({ plan, index }: PlanCardProps) {
     params.set("enquiryId", plan.id);
     params.set("premium", String(plan.premiumAmount));
     params.set("insurer", plan.insurerName);
+    // Carry the chosen insurer offering so create-quote targets the right provider.
+    if (plan.providerProductId) params.set("providerProductId", plan.providerProductId);
     router.push(`/proposal?${params.toString()}`);
   }
 

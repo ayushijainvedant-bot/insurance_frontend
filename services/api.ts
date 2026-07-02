@@ -73,6 +73,17 @@ export function extractApiError(error: unknown, fallback: string): string {
 }
 
 /**
+ * Pull the machine-readable `code` the backend attaches to some errors
+ * (e.g. `USER_NOT_FOUND` on OTP login) so the UI can branch on it.
+ */
+export function extractApiCode(error: unknown): string | undefined {
+  if (axios.isAxiosError(error)) {
+    return (error.response?.data as { code?: string } | undefined)?.code;
+  }
+  return undefined;
+}
+
+/**
  * Pull the per-field validation map out of a 400 response. The backend shape
  * is `{ message: "Validation failed", errors: { field: reason } }`, so a form
  * can highlight each offending field instead of only showing a banner.

@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import UserMenu from "@/components/UserMenu";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuoteModal } from "@/hooks/useQuoteModal";
+import type { QuoteTabId } from "@/types";
 
-const PRODUCTS = [
-  { label: "Term Life Insurance", href: "#", icon: ShieldCheck, color: "text-teal", bg: "bg-teal/10" },
-  { label: "Health Insurance",    href: "#", icon: HeartPulse,  color: "text-brand", bg: "bg-brand/10" },
-  { label: "Two Wheeler Insurance",href: "#",icon: Bike,        color: "text-coral", bg: "bg-coral/10" },
-  { label: "Four Wheeler Insurance",href:"#",icon: Car,         color: "text-teal",  bg: "bg-teal/10"  },
-  { label: "Investment Plans",    href: "#", icon: TrendingUp,  color: "text-amber", bg: "bg-amber/10" },
+const PRODUCTS: { label: string; id: QuoteTabId; icon: typeof ShieldCheck; color: string; bg: string }[] = [
+  { label: "Term Life Insurance",   id: "term-life",    icon: ShieldCheck, color: "text-teal",  bg: "bg-teal/10"  },
+  { label: "Health Insurance",      id: "health",       icon: HeartPulse,  color: "text-brand", bg: "bg-brand/10" },
+  { label: "Two Wheeler Insurance", id: "two-wheeler",  icon: Bike,        color: "text-coral", bg: "bg-coral/10" },
+  { label: "Four Wheeler Insurance",id: "four-wheeler", icon: Car,         color: "text-teal",  bg: "bg-teal/10"  },
+  { label: "Investment Plans",      id: "investment",   icon: TrendingUp,  color: "text-amber", bg: "bg-amber/10" },
 ];
 
 const NAV = [
@@ -94,16 +95,17 @@ export default function Navbar() {
                   {PRODUCTS.map((p) => {
                     const Icon = p.icon;
                     return (
-                      <a
+                      <button
                         key={p.label}
-                        href={p.href}
-                        className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-paper"
+                        type="button"
+                        onClick={() => { openQuote(p.id); setProductsOpen(false); }}
+                        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-paper"
                       >
                         <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${p.bg}`}>
                           <Icon className={`h-4 w-4 ${p.color}`} strokeWidth={1.8} />
                         </span>
                         <span className="text-sm font-semibold text-ink">{p.label}</span>
-                      </a>
+                      </button>
                     );
                   })}
                 </motion.div>
@@ -167,11 +169,12 @@ export default function Navbar() {
               {PRODUCTS.map((p) => {
                 const Icon = p.icon;
                 return (
-                  <a key={p.label} href={p.href}
-                    className="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-paper">
+                  <button key={p.label} type="button"
+                    onClick={() => { openQuote(p.id); setMobileOpen(false); }}
+                    className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left hover:bg-paper">
                     <Icon className={`h-4 w-4 ${p.color}`} strokeWidth={1.8} />
                     <span className="text-sm font-semibold text-ink">{p.label}</span>
-                  </a>
+                  </button>
                 );
               })}
               <div className="my-2 h-px bg-line" />

@@ -11,25 +11,24 @@ export interface InsuranceCategory {
   cta: string;
   icon: LucideIcon;
   features: string[];   // used in the quote modal
+  productId: string;            // backend product id (used to fetch quotes)
   category: string;             // backend product category (e.g. "two_wheeler")
-  productCode: string;          // backend product code (e.g. "TWO_WHEELER", "20102")
-  subProductCode: string | null;
+  isQuotable: boolean;          // at least one insurer offers this product
 }
 
 /**
  * Raw insurance product as returned by the backend's product API
- * (insurance-backend src/models/product.model.ts). Marketing/display
- * extras live in `config`; presentation (icon, colour) is added on the
- * frontend when mapping to an InsuranceCategory.
+ * (insurance-backend src/models/product.model.ts). Provider-agnostic catalog
+ * tile — insurer codes are resolved server-side from the product's offerings;
+ * the API only exposes `isQuotable`. Marketing/display extras live in `config`.
  */
 export interface BackendProduct {
   id: string;
   category: string;            // e.g. "term_life", "four_wheeler"
   name: string;
-  productCode: string;
-  subProductCode: string | null;
   description: string | null;
   isActive: boolean;
+  isQuotable?: boolean;        // true when an insurer offering exists
   config: {
     badge?: string;
     features?: string[];
@@ -84,9 +83,8 @@ export type QuoteTabId = "term-life" | "health" | "two-wheeler" | "four-wheeler"
  * this onto the Go Digit `QuickQuotePayload` before sending.
  */
 export interface TwoWheelerQuoteInput {
+  productId: string;            // backend product id — drives quote fan-out
   category: string;             // from the selected product (e.g. "two_wheeler")
-  productCode: string;          // from the selected product
-  subProductCode: string | null;
   vehicleMainCode: string;
   licensePlateNumber: string;
   pincode: string;
@@ -110,9 +108,8 @@ export interface TwoWheelerQuoteInput {
  * backend's exact (lowercase-c) field name.
  */
 export interface QuickQuotePayload {
+  productId: string;            // backend product id — resolves provider offerings
   category: string;             // backend product category (e.g. "two_wheeler")
-  insuranceProductCode: string;
-  subInsuranceProductCode: string;
   pincode?: string | null;
   isVehicleNew: boolean;
   vehicleMaincode: string;
@@ -121,6 +118,7 @@ export interface QuickQuotePayload {
   registrationDate?: string;
   vehicleIDV?: number | null;
   // Required by the backend only for an existing vehicle (isVehicleNew=false).
+  isPreviousInsurerKnown?: boolean;
   previousInsurerCode?: string;
   previousPolicyNumber?: string;
   previousPolicyExpiryDate?: string;
@@ -188,6 +186,7 @@ export interface PlanAddOn {
 
 export interface InsurancePlan {
   id: string;
+  providerProductId?: string | null;  // chosen insurer offering → carried to create-quote
   insurerName: string;
   insurerLogo?: string;          // URL or undefined → use initials fallback
   premiumAmount: number;         // annual premium in INR

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { Loader2, User, Mail, Lock, Calendar, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import { Loader2, User, Mail, Lock, Calendar, ShieldCheck, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { motion } from "framer-motion";
 
 import AuthShell from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
@@ -41,7 +42,13 @@ export default function SignupPage() {
   const [err, setErr] = useState<string | null>(null);
   const [show, setShow] = useState(false);
 
-  const { register, handleSubmit, setError, formState: { errors } } = useForm<SignupForm>();
+  const { register, handleSubmit, setError, setValue, formState: { errors } } = useForm<SignupForm>();
+
+  // Prefill the mobile number when redirected here from login (unknown number).
+  useEffect(() => {
+    const m = new URLSearchParams(window.location.search).get("mobile");
+    if (m) setValue("mobile", m);
+  }, [setValue]);
 
   const onSubmit = handleSubmit(async (form) => {
     setErr(null); setLoading(true);
@@ -110,7 +117,30 @@ export default function SignupPage() {
             </IconInput>
           </Field>
 
-          {err && <p className="text-xs text-coral">{err}</p>}
+          {err && (
+            <motion.div
+              initial={{ opacity: 0, y: -6, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="relative overflow-hidden rounded-2xl border border-coral/30 bg-linear-to-br from-coral/10 via-coral/5 to-white p-3.5"
+            >
+              <div className="pointer-events-none absolute -right-6 -top-6 h-16 w-16 rounded-full bg-coral/10 blur-2xl" />
+              <div className="relative flex items-start gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-coral/15">
+                  <AlertCircle className="h-4 w-4 text-coral" strokeWidth={2} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-coral">We couldn&apos;t create your account</p>
+                  <p className="mt-0.5 text-[0.72rem] leading-snug text-ink-soft">{err}</p>
+                  {/exist|already|registered/i.test(err) && (
+                    <Link href="/login" className="mt-1.5 inline-flex items-center gap-1 text-[0.72rem] font-bold text-brand hover:underline">
+                      Sign in instead →
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           <Button type="submit" disabled={loading} className="w-full gap-1.5 bg-linear-to-r from-teal to-brand py-5 text-white hover:opacity-90">
             {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Creating account…</> : "Create account"}

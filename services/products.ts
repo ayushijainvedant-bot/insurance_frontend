@@ -14,6 +14,8 @@ import type { BackendProduct, InsuranceCategory } from "@/types";
 /** Map a raw backend product onto the InsuranceCategory shape the UI renders. */
 export function toInsuranceCategory(product: BackendProduct): InsuranceCategory {
   const presentation = CATEGORY_PRESENTATION[product.category] ?? DEFAULT_PRESENTATION;
+  // Insurer codes are resolved server-side (by productId) at quote time, so the
+  // frontend only needs the id + whether the product is quotable.
   return {
     id: presentation.id,
     name: product.name,
@@ -23,9 +25,9 @@ export function toInsuranceCategory(product: BackendProduct): InsuranceCategory 
     cta: "Get Quote",
     icon: presentation.icon,
     features: product.config?.features ?? [],
+    productId: product.id,
     category: product.category,
-    productCode: product.productCode,
-    subProductCode: product.subProductCode,
+    isQuotable: product.isQuotable ?? false,
   };
 }
 

@@ -25,9 +25,12 @@ export interface PolicyStatusResult {
   };
 }
 
-export async function getPolicyStatus(policyNumber: string): Promise<PolicyStatusResult> {
+export async function getPolicyStatus(
+  policyNumber: string,
+  providerProductId: string,
+): Promise<PolicyStatusResult> {
   try {
-    const { data } = await api.post("/user/policy/status", { policyNumber });
+    const { data } = await api.post("/user/policy/status", { policyNumber, providerProductId });
     return inner<PolicyStatusResult>(data);
   } catch (err) {
     throw new Error(extractApiError(err, "Couldn't fetch the policy status."));
@@ -40,6 +43,7 @@ export async function getPolicyStatus(policyNumber: string): Promise<PolicyStatu
  * only chooses the document types and uploads the proof files.
  */
 export interface StartKycInput {
+  providerProductId: string;           // chosen insurer offering → provider dispatch
   policyNumber: string;
   dateOfBirth: string;                 // YYYY-MM-DD — from create-quote
   gender: string;                      // MALE | FEMALE — from create-quote
@@ -63,6 +67,7 @@ export interface StartKycInput {
 export async function startKyc(input: StartKycInput): Promise<{ kyc?: { link?: string } }> {
   try {
     const fd = new FormData();
+    fd.append("providerProductId", input.providerProductId);
     fd.append("queryParam", JSON.stringify({ companyFlag: "GI", policyNumber: input.policyNumber }));
     fd.append("policyHolderType", input.policyHolderType ?? "INDIVIDUAL");
     fd.append("dateOfBirth", input.dateOfBirth);
@@ -109,9 +114,9 @@ export async function initiatePayment(payload: Record<string, unknown>): Promise
  * Download the policy PDF. The backend STREAMS the raw bytes (no link),
  * so we pull it as a blob and trigger a browser download.
  */
-export async function downloadPolicyPdf(policyId: string): Promise<void> {
+export async function downloadPolicyPdf(policyId: string, providerProductId: string): Promise<void> {
   try {
-    const res = await api.post("/user/policy/pdf", { policyId }, { responseType: "blob" });
+    const res = await api.post("/user/policy/pdf", { policyId, providerProductId }, { responseType: "blob" });
     const blob = res.data as Blob;
 
     // A JSON error body can arrive with a blob responseType — surface it.

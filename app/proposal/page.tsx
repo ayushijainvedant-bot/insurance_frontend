@@ -65,6 +65,16 @@ const STATES = [
   { code: "38", name: "Ladakh" }
 ];
 const DOC_TYPES = ["PAN", "AADHAAR", "DRIVING_LICENSE", "PASSPORT", "VOTER_ID"];
+const NOMINEE_RELATIONS = [
+  { value: "SPOUSE", label: "Spouse" },
+  { value: "SON", label: "Son" },
+  { value: "DAUGHTER", label: "Daughter" },
+  { value: "FATHER", label: "Father" },
+  { value: "MOTHER", label: "Mother" },
+  { value: "BROTHER", label: "Brother" },
+  { value: "SISTER", label: "Sister" },
+  { value: "OTHER", label: "Other" },
+];
 // Two-sided documents need a back image; single-page ones (PAN/Passport) don't.
 const docNeedsBack = (t: string) => t === "AADHAAR" || t === "DRIVING_LICENSE" || t === "VOTER_ID";
 const MAX_DOC_BYTES = 500 * 1024; // backend multer limit — 500 KB per file
@@ -125,7 +135,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
   const lastName = restName.join(" ");
 
   const [ctx, setCtx] = useState<
-    { input: TwoWheelerQuoteInput; enquiryId: string; premium: number; insurer: string } | null
+    { input: TwoWheelerQuoteInput; enquiryId: string; premium: number; insurer: string; providerProductId: string | null } | null
   >(null);
   const [step, setStep] = useState(0);          // 0 Proposal · 1 KYC · 2 Payment · 3 Policy
   const [policyNumber, setPolicyNumber] = useState("");
@@ -160,6 +170,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
   });
   const idDocType = useWatch({ control: kycForm.control, name: "idVerificationDocType" });
   const addressDocType = useWatch({ control: kycForm.control, name: "addressVerificationDocType" });
+  const addNominee = useWatch({ control: proposal.control, name: "addNominee" });
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stopPoll = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
@@ -171,12 +182,18 @@ function CheckoutContent({ user }: { user: AuthUser }) {
     const enquiryId = sp.get("enquiryId") ?? "";
     if (!input || !enquiryId) { router.replace("/"); return; }
     /* eslint-disable-next-line react-hooks/set-state-in-effect -- one-time URL read on mount. */
-    setCtx({ input, enquiryId, premium: Number(sp.get("premium") ?? 0), insurer: sp.get("insurer") ?? "Your insurer" });
+    setCtx({
+      input,
+      enquiryId,
+      premium: Number(sp.get("premium") ?? 0),
+      insurer: sp.get("insurer") ?? "Your insurer",
+      providerProductId: sp.get("providerProductId"),
+    });
   }, [router]);
 
   if (!ctx) return <FullLoader />;
 
-  const { input, enquiryId, premium, insurer } = ctx;
+  const { input, enquiryId, premium, insurer, providerProductId } = ctx;
   // Before create-quote we only have the quick-quote estimate from the URL.
   // Once the quote is created, switch to Digit's exact figures (net + tax =
   // gross) so the sidebar and the Payment summary always agree.
@@ -188,7 +205,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
   const onProposal = proposal.handleSubmit(async (form) => {
     setError(null); setBusy(true);
     try {
-      const res = await createQuoteRequest(buildCreateQuotePayload(input, enquiryId, form)) as {
+      const res = await createQuoteRequest(buildCreateQuotePayload(input, enquiryId, form, providerProductId)) as {
         data?: {
           policyNumber?: string;
           applicationId?: string;
@@ -235,7 +252,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
     stopPoll();
     pollRef.current = setInterval(async () => {
       try {
-        const s = await getPolicyStatus(policyNumber);
+        const s = await getPolicyStatus(policyNumber, providerProductId ?? "");
         setStatusText(s.kycStatus?.kycVerificationStatus || s.policyStatus || "");
         if (done(s)) { stopPoll(); setWaiting(false); onDone(); }
       } catch { /* keep polling */ }
@@ -252,6 +269,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
       const addressDocs = [v.addressFront?.[0], v.addressBack?.[0]].filter(Boolean) as File[];
 
       const payload: StartKycInput = {
+        providerProductId: providerProductId ?? "",
         policyNumber,
         dateOfBirth: kycPrefill.dateOfBirth,   // from create-quote, not re-asked
         gender: kycPrefill.gender,             // from create-quote, not re-asked
@@ -276,12 +294,12 @@ function CheckoutContent({ user }: { user: AuthUser }) {
   async function onPay() {
     setError(null); setBusy(true);
     try {
-      const { paymentLink } = await initiatePayment({ applicationId, paymentMode: "EB" });
+      const { paymentLink } = await initiatePayment({ applicationId, paymentMode: "EB", providerProductId: providerProductId ?? "" });
       if (!paymentLink) throw new Error("Payment link was not returned. Please try again.");
       // Stash the policy context so /payment/success can recover it after the
       // gateway redirects back (the checkout tab's React state is gone by then).
       try {
-        localStorage.setItem("va:payment", JSON.stringify({ policyNumber, applicationId, insurer }));
+        localStorage.setItem("va:payment", JSON.stringify({ policyNumber, applicationId, insurer, providerProductId }));
       } catch { /* localStorage unavailable — success page still shows a generic message */ }
       // TEMP (testing): skip the Digit gateway and go straight to the success
       // page to exercise the policy-status check. Restore the line below to go live.
@@ -297,7 +315,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
   async function checkKyc() {
     setBusy(true);
     try {
-      const s = await getPolicyStatus(policyNumber);
+      const s = await getPolicyStatus(policyNumber, providerProductId ?? "");
       setStatusText(s.kycStatus?.kycVerificationStatus || s.policyStatus || "");
       if (isKycDone(s.kycStatus?.kycVerificationStatus)) { stopPoll(); setWaiting(false); setStep(2); }
     } catch (err) {
@@ -307,7 +325,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
 
   async function onDownload() {
     setBusy(true); setError(null);
-    try { await downloadPolicyPdf(applicationId); }
+    try { await downloadPolicyPdf(applicationId, providerProductId ?? ""); }
     catch (err) { setError(err instanceof Error ? err.message : "Couldn't download the policy."); }
     finally { setBusy(false); }
   }
@@ -404,7 +422,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
               {step === 0 && (
                 <motion.form key="s0" id="step-form" onSubmit={onProposal} className="space-y-6" {...anim}>
                   <StepHeader icon={User} title="Proposer details" subtitle="Tell us who this policy is for." />
-                  <Card title="Personal details" icon={User}>
+                  <Card title="Personal details" icon={User} tone="brand">
                     <Grid>
                       <Input label="First Name" err={proposal.formState.errors.firstName?.message} reg={proposal.register("firstName", { required: "Required" })} />
                       <Input label="Last Name" err={proposal.formState.errors.lastName?.message} reg={proposal.register("lastName", { required: "Required" })} />
@@ -423,7 +441,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
                         reg={proposal.register("mobile", { required: "Required", pattern: { value: /^[6-9]\d{9}$/, message: "Enter a valid 10-digit number" } })} />
                     </Grid>
                   </Card>
-                  <Card title="Address" icon={ShieldCheck}>
+                  <Card title="Address" icon={ShieldCheck} tone="teal">
                     <Grid>
                       <div className="sm:col-span-2">
                         <Input label="Street / Address" err={proposal.formState.errors.street?.message} reg={proposal.register("street", { required: "Required" })} />
@@ -439,13 +457,45 @@ function CheckoutContent({ user }: { user: AuthUser }) {
                         reg={proposal.register("pincode", { required: "Required", pattern: { value: /^\d{6}$/, message: "Enter a valid 6-digit pincode" } })} />
                     </Grid>
                   </Card>
-                  <Card title="Vehicle identification" icon={FileText}>
+                  <Card title="Vehicle identification" icon={FileText} tone="amber">
                     <Grid>
                       <Input label="Chassis / VIN Number" err={proposal.formState.errors.vehicleIdentificationNumber?.message}
                         reg={proposal.register("vehicleIdentificationNumber", { required: "Required" })} />
                       <Input label="Engine Number" err={proposal.formState.errors.engineNumber?.message}
                         reg={proposal.register("engineNumber", { required: "Required" })} />
                     </Grid>
+                  </Card>
+
+                  <Card title="Nominee" icon={User} tone="violet">
+                    <label className="flex cursor-pointer items-start gap-2.5">
+                      <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-line text-brand focus:ring-2 focus:ring-brand/20"
+                        {...proposal.register("addNominee")} />
+                      <span>
+                        <span className="text-xs font-bold text-ink">Add a nominee (optional)</span>
+                        <span className="mt-0.5 block text-[0.72rem] text-ink-soft">
+                          The person who receives the claim benefit. You can add this later too.
+                        </span>
+                      </span>
+                    </label>
+
+                    {addNominee && (
+                      <div className="mt-5 border-t border-line pt-5">
+                        <Grid>
+                          <Input label="Nominee Name" err={proposal.formState.errors.nomineeName?.message}
+                            reg={proposal.register("nomineeName", { required: "Required", shouldUnregister: true })} />
+                          <Field label="Nominee Date of Birth" err={proposal.formState.errors.nomineeDateOfBirth?.message}>
+                            <input type="date" className={field}
+                              {...proposal.register("nomineeDateOfBirth", { required: "Required", shouldUnregister: true })} />
+                          </Field>
+                          <Field label="Relation to Nominee">
+                            <select className={field} defaultValue="" {...proposal.register("nomineeRelation", { shouldUnregister: true })}>
+                              <option value="" disabled>Select relation</option>
+                              {NOMINEE_RELATIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                            </select>
+                          </Field>
+                        </Grid>
+                      </div>
+                    )}
                   </Card>
                 </motion.form>
               )}
@@ -456,7 +506,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
                   <StepHeader icon={FileCheck2} title="KYC verification" subtitle="A regulatory step — required before your policy is issued." />
                   {!waiting ? (
                     <form id="step-form" onSubmit={onStartKyc} className="space-y-6">
-                      <Card title="Identity proof" icon={FileCheck2}>
+                      <Card title="Identity proof" icon={FileCheck2} tone="teal">
                         <Grid>
                           <Field label="ID Verification Document Type">
                             <select className={field} {...kycForm.register("idVerificationDocType", { required: true })}>
@@ -477,7 +527,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
                         <InfoNote>Upload a clear photo or PDF (max 500 KB per file). We&apos;ll send these securely to Go Digit for verification.</InfoNote>
                       </Card>
 
-                      <Card title="Address proof" icon={ShieldCheck}>
+                      <Card title="Address proof" icon={ShieldCheck} tone="brand">
                         <Grid>
                           <Field label="Address Verification Document Type">
                             <select className={field} {...kycForm.register("addressVerificationDocType", { required: true })}>
@@ -785,13 +835,22 @@ function StepHeader({ icon: Icon, title, subtitle }: { icon: React.ElementType; 
     </div>
   );
 }
-function Card({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
+const CARD_TONES = {
+  brand:  { bg: "from-brand/6 via-brand/3 to-white",   border: "border-brand/12",  glow: "bg-brand/10",  icon: "from-brand to-violet" },
+  teal:   { bg: "from-teal/7 via-teal/3 to-white",     border: "border-teal/15",   glow: "bg-teal/10",   icon: "from-teal to-brand" },
+  amber:  { bg: "from-amber/8 via-amber/3 to-white",   border: "border-amber/15",  glow: "bg-amber/10",  icon: "from-amber to-orange-500" },
+  violet: { bg: "from-violet/7 via-violet/3 to-white", border: "border-violet/15", glow: "bg-violet/10", icon: "from-violet to-brand" },
+} as const;
+
+function Card({ title, icon: Icon, tone = "brand", children }: {
+  title: string; icon: React.ElementType; tone?: keyof typeof CARD_TONES; children: React.ReactNode;
+}) {
+  const t = CARD_TONES[tone];
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-brand/15 bg-linear-to-br from-brand/6 via-violet/5 to-white p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6">
-      <div className="pointer-events-none absolute -right-14 -top-14 h-32 w-32 rounded-full bg-violet/10 blur-2xl" />
-      <div className="pointer-events-none absolute -bottom-16 -left-14 h-32 w-32 rounded-full bg-brand/5 blur-2xl" />
+    <section className={`relative overflow-hidden rounded-2xl border bg-linear-to-br p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6 ${t.border} ${t.bg}`}>
+      <div className={`pointer-events-none absolute -right-14 -top-14 h-32 w-32 rounded-full blur-2xl ${t.glow}`} />
       <h3 className="relative mb-5 flex items-center gap-2.5 font-display text-sm font-bold text-ink">
-        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-linear-to-br from-brand to-violet shadow-sm shadow-brand/25">
+        <span className={`flex h-8 w-8 items-center justify-center rounded-xl bg-linear-to-br shadow-sm ${t.icon}`}>
           <Icon className="h-4 w-4 text-white" strokeWidth={2} />
         </span>
         {title}

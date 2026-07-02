@@ -1,6 +1,7 @@
 "use client";
 
-import { LogOut, User as UserIcon } from "lucide-react";
+import Link from "next/link";
+import { LayoutDashboard, LogOut, User as UserIcon, UserCog } from "lucide-react";
 
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
@@ -40,6 +41,17 @@ export default function UserMenu({
           <p className="text-xs font-bold text-ink-soft">Signed in as</p>
           <p className="text-sm font-semibold text-ink">{user.phone ?? user.email ?? "—"}</p>
         </div>
+        <div className="my-1 h-px bg-line" />
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard" className="cursor-pointer">
+            <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/profile" className="cursor-pointer">
+            <UserCog className="mr-2 h-4 w-4" /> Profile
+          </Link>
+        </DropdownMenuItem>
         <div className="my-1 h-px bg-line" />
         <DropdownMenuItem onSelect={onSignOut} className="text-coral hover:bg-coral/5 focus:bg-coral/5">
           <LogOut className="mr-2 h-4 w-4" /> Sign out

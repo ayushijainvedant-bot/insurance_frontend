@@ -5,7 +5,7 @@ import {
 } from "react";
 
 import type { AuthUser, VerifyOtpResult } from "@/types";
-import { getUser, setSession, clearSession } from "@/services/tokenStorage";
+import { getToken, getUser, setSession, clearSession } from "@/services/tokenStorage";
 import { AUTH_UNAUTHORIZED_EVENT } from "@/services/api";
 
 interface AuthContextValue {
@@ -13,6 +13,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   ready: boolean;                       // true once we've read storage
   signIn: (result: VerifyOtpResult) => void;
+  updateUser: (user: AuthUser) => void; // refresh the stored user (e.g. after a profile edit)
   signOut: () => void;
 }
 
@@ -32,6 +33,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = useCallback((result: VerifyOtpResult) => {
     setSession(result.user, result.token);
     setUser(result.user);
+  }, []);
+
+  // Persist an updated user (e.g. after a profile edit) against the existing token.
+  const updateUser = useCallback((next: AuthUser) => {
+    const token = getToken();
+    if (token) setSession(next, token);
+    setUser(next);
   }, []);
 
   const signOut = useCallback(() => {
@@ -54,8 +62,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, isAuthenticated: !!user, ready, signIn, signOut }),
-    [user, ready, signIn, signOut],
+    () => ({ user, isAuthenticated: !!user, ready, signIn, updateUser, signOut }),
+    [user, ready, signIn, updateUser, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

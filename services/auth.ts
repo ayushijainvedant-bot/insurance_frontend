@@ -1,4 +1,4 @@
-import { api, extractApiError, extractFieldErrors } from "@/services/api";
+import { api, extractApiError, extractApiCode, extractFieldErrors } from "@/services/api";
 import type { RequestOtpResult, VerifyOtpResult } from "@/types";
 
 /**
@@ -18,10 +18,13 @@ import type { RequestOtpResult, VerifyOtpResult } from "@/types";
 export class AuthError extends Error {
   /** Per-field validation reasons from a 400 (e.g. { email: "already in use" }). */
   fields?: Record<string, string>;
-  constructor(message: string, fields?: Record<string, string>) {
+  /** Machine-readable backend code, e.g. "USER_NOT_FOUND". */
+  code?: string;
+  constructor(message: string, fields?: Record<string, string>, code?: string) {
     super(message);
     this.name = "AuthError";
     this.fields = fields;
+    this.code = code;
   }
 }
 
@@ -103,7 +106,12 @@ export async function requestOtp(mobile: string): Promise<RequestOtpResult> {
     );
     return { devOtp: data?.devOtp };
   } catch (err) {
-    throw new AuthError(extractApiError(err, "Could not send OTP. Please try again."));
+    // Carry the backend code (e.g. USER_NOT_FOUND) so the UI can redirect to signup.
+    throw new AuthError(
+      extractApiError(err, "Could not send OTP. Please try again."),
+      undefined,
+      extractApiCode(err),
+    );
   }
 }
 

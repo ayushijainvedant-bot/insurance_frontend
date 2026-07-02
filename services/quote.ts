@@ -117,6 +117,7 @@ export const MOTOR_NCB: { value: string; label: string }[] = [
 ];
 interface ProviderQuote {
   provider?: string;          // e.g. "DIGIT"
+  providerProductId?: string | null;  // the insurer offering that produced this quote
   premium?: number;           // gross premium as a number, e.g. 4030.88
   data?: {
     enquiryId?: string;
@@ -138,9 +139,8 @@ export function toQuickQuotePayload(
   filters?: QuoteFilters,
 ): QuickQuotePayload {
   const payload: QuickQuotePayload = {
+    productId: input.productId,
     category: input.category,
-    insuranceProductCode: input.productCode,
-    subInsuranceProductCode: input.subProductCode ?? "",
     pincode: input.pincode || null,
     isVehicleNew: input.isVehicleNew,
     vehicleMaincode: input.vehicleMainCode,
@@ -151,6 +151,8 @@ export function toQuickQuotePayload(
 
   // Existing vehicle (renewal) → Digit requires the previous-policy block.
   if (!input.isVehicleNew) {
+    // Previous insurer is "known" when the user picked one in the modal.
+    payload.isPreviousInsurerKnown = !!input.previousInsurerCode;
     payload.previousInsurerCode = input.previousInsurerCode || undefined;
     payload.previousPolicyNumber = input.previousPolicyNumber || undefined;
     payload.previousPolicyExpiryDate = input.previousPolicyExpiryDate || undefined;
@@ -185,8 +187,8 @@ export function toQuickQuotePayload(
 
 export function encodeQuoteInput(input: TwoWheelerQuoteInput): string {
   const p = new URLSearchParams({
+    productId: input.productId,
     category: input.category,
-    productCode: input.productCode,
     vehicleMainCode: input.vehicleMainCode,
     licensePlateNumber: input.licensePlateNumber,
     pincode: input.pincode,
@@ -194,7 +196,6 @@ export function encodeQuoteInput(input: TwoWheelerQuoteInput): string {
     registrationDate: input.registrationDate,
     isVehicleNew: String(input.isVehicleNew),
   });
-  if (input.subProductCode) p.set("subProductCode", input.subProductCode);
   // Renewal (existing vehicle) → carry the previous-policy details too.
   if (!input.isVehicleNew) {
     if (input.previousInsurerCode) p.set("previousInsurerCode", input.previousInsurerCode);
@@ -208,18 +209,17 @@ export function encodeQuoteInput(input: TwoWheelerQuoteInput): string {
 
 /** Parse the inputs back out of the URL. Returns null if required keys are missing. */
 export function decodeQuoteInput(sp: URLSearchParams): TwoWheelerQuoteInput | null {
+  const productId = sp.get("productId");
   const category = sp.get("category");
-  const productCode = sp.get("productCode");
   const vehicleMainCode = sp.get("vehicleMainCode");
   const licensePlateNumber = sp.get("licensePlateNumber");
   const pincode = sp.get("pincode");
-  if (!category || !productCode || !vehicleMainCode || !licensePlateNumber || !pincode) {
+  if (!productId || !category || !vehicleMainCode || !licensePlateNumber || !pincode) {
     return null;
   }
   return {
+    productId,
     category,
-    productCode,
-    subProductCode: sp.get("subProductCode"),
     vehicleMainCode,
     licensePlateNumber,
     pincode,
@@ -258,6 +258,7 @@ function toPlan(q: ProviderQuote, i: number): InsurancePlan {
 
   return {
     id: q.data?.enquiryId || `${q.provider ?? "quote"}-${i}`,
+    providerProductId: q.providerProductId ?? null,
     insurerName: labelFor(q.provider),
     insurerLogo: undefined,
     premiumAmount: q.premium ?? 0,
@@ -341,6 +342,11 @@ export interface ProposalForm {
   pincode: string;
   vehicleIdentificationNumber: string;  // chassis / VIN (required by Digit)
   engineNumber: string;
+  // Optional nominee — only sent when `addNominee` is checked.
+  addNominee?: boolean;
+  nomineeName?: string;           // full name; split into first/last for Digit
+  nomineeDateOfBirth?: string;    // YYYY-MM-DD
+  nomineeRelation?: string;       // SPOUSE | SON | …
 }
 
 function isoDate(d: Date): string {
@@ -357,6 +363,7 @@ export function buildCreateQuotePayload(
   input: TwoWheelerQuoteInput,
   enquiryId: string,
   form: ProposalForm,
+  providerProductId?: string | null,
 ): Record<string, unknown> {
   const start = new Date();
   start.setDate(start.getDate() + 1);
@@ -367,8 +374,8 @@ export function buildCreateQuotePayload(
   const payload: Record<string, unknown> = {
     enquiryId,
     category: input.category,
-    insuranceProductCode: input.productCode,
-    subInsuranceProductCode: input.subProductCode ?? "",
+    // The backend resolves the insurer + its codes from this offering.
+    ...(providerProductId ? { providerProductId } : {}),
     startDate: isoDate(start),
     endDate: isoDate(end),
     coverages: { personalAccident: { selection: true, insuredAmount: 1500000, coverTerm: 1 } },
@@ -394,6 +401,19 @@ export function buildCreateQuotePayload(
     kyc: {},
     pospInfo: { isPOSP: false },
   };
+
+  // Optional nominee — only when the proposer opted to add one. The single name
+  // field is split into first/last (Digit requires both); a single-word name
+  // reuses it as the last name so the required field is satisfied.
+  if (form.addNominee && form.nomineeName?.trim() && form.nomineeDateOfBirth) {
+    const parts = form.nomineeName.trim().split(/\s+/);
+    payload.nominee = {
+      firstName: parts[0],
+      lastName: parts.slice(1).join(" ") || parts[0],
+      dateOfBirth: form.nomineeDateOfBirth,
+      relation: form.nomineeRelation || undefined,
+    };
+  }
 
   // Existing vehicle → Digit requires the previous-insurer block. Only send
   // fields that actually have a value — an empty expiry date ("") fails the

@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Loader2, Smartphone, Mail, Lock, ShieldCheck, Eye, EyeOff,
+  Loader2, Smartphone, Mail, Lock, ShieldCheck, Eye, EyeOff, UserPlus, ArrowRight,
 } from "lucide-react";
 
 import AuthShell from "@/components/auth/AuthShell";
@@ -94,7 +94,8 @@ function TabButton({ active, onClick, icon: Icon, label }: {
 
 /* ── Tab 1: Mobile + OTP ── */
 function OtpTab({ onSignedIn }: { onSignedIn: (r: Awaited<ReturnType<typeof verifyOtp>>) => void }) {
-  const [step, setStep] = useState<"phone" | "otp">("phone");
+  const router = useRouter();
+  const [step, setStep] = useState<"phone" | "otp" | "notFound">("phone");
   const [mobile, setMobile] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -103,11 +104,26 @@ function OtpTab({ onSignedIn }: { onSignedIn: (r: Awaited<ReturnType<typeof veri
 
   const { register, handleSubmit, formState: { errors } } = useForm<{ mobile: string }>();
 
+  // Send them to sign up with the number (and any ?next) prefilled.
+  const goSignup = useCallback(() => {
+    const next = new URLSearchParams(window.location.search).get("next");
+    const params = new URLSearchParams({ mobile });
+    if (next && next.startsWith("/") && !next.startsWith("//")) params.set("next", next);
+    router.push(`/signup?${params.toString()}`);
+  }, [mobile, router]);
+
   useEffect(() => {
     if (resendIn <= 0) return;
     const id = setTimeout(() => setResendIn((s) => s - 1), 1000);
     return () => clearTimeout(id);
   }, [resendIn]);
+
+  // After showing the "no account" notice, auto-continue to sign up.
+  useEffect(() => {
+    if (step !== "notFound") return;
+    const id = setTimeout(goSignup, 3200);
+    return () => clearTimeout(id);
+  }, [step, goSignup]);
 
   const sendOtp = handleSubmit(async ({ mobile: m }) => {
     setErr(null); setLoading(true);
@@ -115,6 +131,11 @@ function OtpTab({ onSignedIn }: { onSignedIn: (r: Awaited<ReturnType<typeof veri
       const { devOtp: code } = await requestOtp(m);
       setMobile(m); setDevOtp(code ?? null); setResendIn(RESEND_COOLDOWN); setStep("otp");
     } catch (e) {
+      // Unknown number → show a friendly "sign up first" notice, then redirect.
+      if (e instanceof AuthError && e.code === "USER_NOT_FOUND") {
+        setMobile(m); setStep("notFound");
+        return;
+      }
       setErr(e instanceof AuthError ? e.message : "Could not send OTP. Please try again.");
     } finally { setLoading(false); }
   });
@@ -137,6 +158,31 @@ function OtpTab({ onSignedIn }: { onSignedIn: (r: Awaited<ReturnType<typeof veri
     } catch (e) {
       setErr(e instanceof AuthError ? e.message : "Verification failed. Please try again.");
     } finally { setLoading(false); }
+  }
+
+  if (step === "notFound") {
+    return (
+      <motion.div {...anim} className="space-y-4 text-center">
+        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-linear-to-br from-amber to-orange-500 shadow-lg shadow-amber/30">
+          <UserPlus className="h-7 w-7 text-white" strokeWidth={1.9} />
+        </span>
+        <div>
+          <p className="font-display text-lg font-bold text-ink">No account found</p>
+          <p className="mx-auto mt-1 max-w-xs text-sm leading-relaxed text-ink-soft">
+            We couldn&apos;t find an account for <span className="font-semibold text-ink">+91 {mobile}</span>. Let&apos;s create one — it only takes a minute.
+          </p>
+        </div>
+        <Button onClick={goSignup} className="w-full gap-1.5 bg-linear-to-r from-brand to-violet py-5 text-white shadow-lg shadow-brand/25 hover:opacity-90">
+          <UserPlus className="h-4 w-4" /> Create your account <ArrowRight className="h-4 w-4" />
+        </Button>
+        <button type="button" onClick={() => { setStep("phone"); setErr(null); }} className="text-xs font-semibold text-brand hover:underline">
+          Use a different number
+        </button>
+        <p className="flex items-center justify-center gap-1.5 text-[0.7rem] text-ink-soft">
+          <Loader2 className="h-3 w-3 animate-spin text-brand" /> Taking you to sign up…
+        </p>
+      </motion.div>
+    );
   }
 
   if (step === "otp") {

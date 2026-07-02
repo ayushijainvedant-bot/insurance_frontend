@@ -5,7 +5,6 @@ import {
 } from "react";
 
 import { listProducts } from "@/services/products";
-import { categories as staticCategories } from "@/data/categories";
 import type { InsuranceCategory } from "@/types";
 
 interface ProductsContextValue {
@@ -23,10 +22,9 @@ const ProductsContext = createContext<ProductsContextValue | null>(null);
  * same data and the API is hit a single time per load, instead of each
  * component firing its own request.
  *
- * Backend-driven with a safety net: if the products API can't be reached
- * (or returns nothing), it falls back to the bundled static catalogue so
- * the homepage and quote modal still render the plans. `error` is still
- * surfaced for visibility even when the fallback is used.
+ * Backend-driven: the catalogue comes entirely from the products API. On
+ * failure the list stays empty and `error` is surfaced so consumers can show
+ * an appropriate message (no bundled static fallback).
  */
 export function ProductsProvider({ children }: { children: React.ReactNode }) {
   const [categories, setCategories] = useState<InsuranceCategory[]>([]);
@@ -38,13 +36,11 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     listProducts()
       .then((data) => {
         if (!active) return;
-        // Empty response → use the static catalogue rather than render blank.
-        setCategories(data.length ? data : staticCategories);
+        setCategories(data);
       })
       .catch((err: unknown) => {
         if (!active) return;
         setError(err instanceof Error ? err.message : "Could not load insurance plans.");
-        setCategories(staticCategories); // graceful fallback to static values
       })
       .finally(() => {
         if (active) setLoading(false);

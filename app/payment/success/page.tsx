@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   BadgeCheck, Sparkles, FileText, Loader2, ArrowLeft, Lock, AlertCircle, RefreshCw, XCircle,
@@ -23,8 +24,8 @@ import { getPolicyStatus, downloadPolicyPdf, type PolicyStatusResult } from "@/s
  * automatically — the customer gets a button once payment is confirmed.
  */
 
-type Ctx = { policyNumber: string; applicationId: string; insurer: string };
-type Phase = "verifying" | "paid" | "pending";
+type Ctx = { policyNumber: string; applicationId: string; insurer: string; providerProductId: string };
+type Phase = "verifying" | "paid" | "pending" | "denied";
 
 // Payment is the source of truth: paymentStatus === "PAID" (COMPLETE policy is a
 // secondary confirmation). Anything else → not paid yet.
@@ -43,28 +44,36 @@ function readContext(): Ctx {
     policyNumber: sp.get("policyNumber") || sp.get("policyNo") || stored.policyNumber || "",
     applicationId: sp.get("applicationId") || stored.applicationId || "",
     insurer: stored.insurer || "your insurer",
+    providerProductId: sp.get("providerProductId") || stored.providerProductId || "",
   };
 }
 
 export default function PaymentSuccessPage() {
+  const router = useRouter();
   const [ctx, setCtx] = useState<Ctx | null>(null);
   const [phase, setPhase] = useState<Phase>("verifying");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const ctxRef = useRef<Ctx | null>(null);
 
-  // Read the status once on load. We do NOT poll — one call decides paid vs not;
-  // the customer can re-check manually if it's still processing.
+  // Read the payment context ONCE and consume it: we clear the stash right away
+  // so this page is single-use and can't be re-opened by typing the URL. A visit
+  // with no context (direct access) is denied and redirected home.
   useEffect(() => {
-    const c = readContext();
-    /* eslint-disable-next-line react-hooks/set-state-in-effect -- one-time context read. */
+    if (!ctxRef.current) {
+      ctxRef.current = readContext();
+      clearStash();
+    }
+    const c = ctxRef.current;
     setCtx(c);
-    if (!c.policyNumber) { setPhase("pending"); return; }
+    if (!c.policyNumber) { setPhase("denied"); return; }
+
     let cancelled = false;
     (async () => {
       try {
-        const s = await getPolicyStatus(c.policyNumber);
+        const s = await getPolicyStatus(c.policyNumber, c.providerProductId);
         if (cancelled) return;
-        if (isPaid(s)) { setPhase("paid"); clearStash(); } else setPhase("pending");
+        setPhase(isPaid(s) ? "paid" : "pending");
       } catch {
         if (!cancelled) setPhase("pending");
       }
@@ -72,12 +81,19 @@ export default function PaymentSuccessPage() {
     return () => { cancelled = true; };
   }, []);
 
+  // Direct/expired access → show the notice briefly, then send them home.
+  useEffect(() => {
+    if (phase !== "denied") return;
+    const id = setTimeout(() => router.replace("/"), 5000);
+    return () => clearTimeout(id);
+  }, [phase, router]);
+
   // Manual re-check when the first call showed the payment still processing.
   async function recheck() {
     if (!ctx?.policyNumber) return;
     setBusy(true); setError(null);
     try {
-      const s = await getPolicyStatus(ctx.policyNumber);
+      const s = await getPolicyStatus(ctx.policyNumber, ctx.providerProductId);
       if (isPaid(s)) { setPhase("paid"); clearStash(); }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't check the payment status.");
@@ -87,13 +103,46 @@ export default function PaymentSuccessPage() {
   async function onDownload() {
     if (!ctx?.applicationId) return;
     setBusy(true); setError(null);
-    try { await downloadPolicyPdf(ctx.applicationId); }
+    try { await downloadPolicyPdf(ctx.applicationId, ctx.providerProductId); }
     catch (err) { setError(err instanceof Error ? err.message : "Couldn't download the policy."); }
     finally { setBusy(false); }
   }
 
   const paid = phase === "paid";
   const verifying = phase === "verifying";
+
+  // Direct access (no active payment) → brief notice, then redirect home.
+  if (phase === "denied") {
+    return (
+      <>
+        <Navbar />
+        <main className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center overflow-hidden bg-paper px-4 py-16">
+          <div className="pointer-events-none absolute -left-20 -top-24 h-72 w-72 rounded-full bg-brand/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 -right-20 h-72 w-72 rounded-full bg-violet/10 blur-3xl" />
+          <motion.div
+            initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="relative w-full max-w-md overflow-hidden rounded-3xl border border-line bg-white/90 p-8 text-center shadow-2xl shadow-brand/10 backdrop-blur sm:p-10"
+          >
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-linear-to-r from-brand to-violet" />
+            <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/10">
+              <Lock className="h-7 w-7 text-brand" strokeWidth={1.9} />
+            </span>
+            <h1 className="mt-5 font-display text-xl font-bold text-ink sm:text-2xl">Nothing to show here</h1>
+            <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-ink-soft">
+              This page opens only right after a payment. Taking you back to the home page…
+            </p>
+            <p className="mt-5 flex items-center justify-center gap-1.5 text-xs text-ink-soft">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-brand" /> Redirecting…
+            </p>
+            <Link href="/" className="mt-6 inline-flex items-center gap-1.5 rounded-xl bg-linear-to-r from-brand to-violet px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-brand/25 hover:opacity-90">
+              <ArrowLeft className="h-4 w-4" /> Go home now
+            </Link>
+          </motion.div>
+        </main>
+      </>
+    );
+  }
 
   return (
     <>
