@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { AuthProvider } from "@/hooks/useAuth";
-import { CartProvider } from "@/hooks/useCart";
-import { ProductsProvider } from "@/hooks/useProducts";
-import { QuoteModalProvider } from "@/hooks/useQuoteModal";
+import ClientProviders from "@/components/ClientProviders";
 
 export const metadata: Metadata = {
   title: "Vedant Insurance Limited — Let's find you the Best Insurance",
@@ -31,13 +28,7 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-paper text-ink font-body antialiased">
-        <AuthProvider>
-          <CartProvider>
-            <ProductsProvider>
-              <QuoteModalProvider>{children}</QuoteModalProvider>
-            </ProductsProvider>
-          </CartProvider>
-        </AuthProvider>
+        <ClientProviders>{children}</ClientProviders>
       </body>
     </html>
   );

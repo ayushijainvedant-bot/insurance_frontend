@@ -68,6 +68,50 @@ export interface AdminDashboard {
   recentPayments: AdminPayment[];
 }
 
+export interface AdminCustomerDetailPayment {
+  id: string;
+  policyId: string;
+  policyNumber: string | null;
+  status: string | null;
+  premium: number | null;
+  paymentMode: string | null;
+  createdAt: string;
+}
+
+export interface AdminCustomerDetail {
+  customer: Omit<AdminCustomer, "policyCount">;
+  policies: AdminPolicy[];
+  payments: AdminCustomerDetailPayment[];
+}
+
+export interface AdminPolicyPayment {
+  id: string;
+  status: string | null;
+  premium: number | null;
+  paymentMode: string | null;
+  paymentLink: string | null;
+  createdAt: string;
+}
+
+export interface AdminPolicyDetail {
+  id: string;
+  policyNumber: string | null;
+  applicationId: string | null;
+  enquiryId: string | null;
+  status: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  premiumPaid: number | null;
+  createdAt: string;
+  customer: { id: string; name: string | null; email: string | null; phone: string | null; dob: string | null } | null;
+  provider: { code: string; name: string } | null;
+  productName: string | null;
+  category: string | null;
+  offering: { id: string; productCode: string; subProductCode: string | null } | null;
+  paymentStatus: string | null;
+  payments: AdminPolicyPayment[];
+}
+
 export interface Page<T> {
   rows: T[];
   total: number;
@@ -119,12 +163,32 @@ export async function listCustomers(q: ListQuery = {}): Promise<Page<AdminCustom
   }
 }
 
+export async function getCustomer(id: string): Promise<AdminCustomerDetail> {
+  try {
+    const { data } = await cmsApi.get<{ data?: AdminCustomerDetail }>(`/cms/customers/${id}`);
+    if (!data?.data) throw new Error("Customer not found.");
+    return data.data;
+  } catch (err) {
+    throw new Error(extractApiError(err, "Couldn't load this customer."));
+  }
+}
+
 export async function listPolicies(q: ListQuery = {}): Promise<Page<AdminPolicy>> {
   try {
     const { data } = await cmsApi.get<{ data?: Page<AdminPolicy> }>("/cms/policies", { params: buildParams(q) });
     return data?.data ?? emptyPage<AdminPolicy>(q.page, q.limit);
   } catch (err) {
     throw new Error(extractApiError(err, "Couldn't load policies."));
+  }
+}
+
+export async function getPolicy(id: string): Promise<AdminPolicyDetail> {
+  try {
+    const { data } = await cmsApi.get<{ data?: AdminPolicyDetail }>(`/cms/policies/${id}`);
+    if (!data?.data) throw new Error("Policy not found.");
+    return data.data;
+  } catch (err) {
+    throw new Error(extractApiError(err, "Couldn't load this policy."));
   }
 }
 

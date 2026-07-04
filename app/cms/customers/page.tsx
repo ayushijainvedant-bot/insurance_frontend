@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AlertCircle, RefreshCw, ArrowUpRight } from "lucide-react";
 
 import CmsShell from "@/components/cms/CmsShell";
 import {
@@ -13,6 +14,7 @@ import { listCustomers, type AdminCustomer, type Page } from "@/services/cmsData
 const LIMIT = 12;
 
 export default function CmsCustomersPage() {
+  const router = useRouter();
   const [data, setData] = useState<Page<AdminCustomer> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +61,8 @@ export default function CmsCustomersPage() {
             {loading && !data ? <LoadingRows cols={6} />
               : !data || data.rows.length === 0 ? <EmptyRow cols={6} label="No customers found." />
               : data.rows.map((c) => (
-                <tr key={c.id} className="border-t border-line hover:bg-paper/60">
+                <tr key={c.id} onClick={() => router.push(`/cms/customers/${c.id}`)}
+                  className="cursor-pointer border-t border-line transition hover:bg-paper/60">
                   <Td>
                     <div className="flex items-center gap-2.5">
                       <Avatar name={c.name} />
@@ -71,7 +74,12 @@ export default function CmsCustomersPage() {
                   </Td>
                   <Td className="font-mono text-xs text-ink-soft">{c.phone ?? "—"}</Td>
                   <Td className="text-ink-soft">{fmtDate(c.dob)}</Td>
-                  <Td className="text-center font-bold">{c.policyCount}</Td>
+                  <Td className="text-center">
+                    <span className="inline-flex items-center gap-1 font-bold text-brand">
+                      {c.policyCount}
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                    </span>
+                  </Td>
                   <Td><ActivePill active={c.isActive} /></Td>
                   <Td className="text-ink-soft">{fmtDate(c.createdAt)}</Td>
                 </tr>

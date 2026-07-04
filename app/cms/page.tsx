@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  Users, ShieldCheck, BadgeCheck, Clock, Wallet, Building2, Package, Layers,
+  Users, ShieldCheck, Clock, Wallet, Building2, Package, Layers,
   CreditCard, AlertCircle, RefreshCw, ArrowRight,
 } from "lucide-react";
 
@@ -43,18 +43,16 @@ export default function CmsDashboardPage() {
       )}
 
       {/* Primary stats */}
-      <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
         <Stat icon={Users}      grad="from-brand to-violet"    label="Customers"        value={s?.totalCustomers} loading={loading} />
         <Stat icon={ShieldCheck} grad="from-violet to-brand"   label="Policies"         value={s?.totalPolicies}  loading={loading} />
-        <Stat icon={BadgeCheck} grad="from-teal to-emerald-500" label="Active Policies" value={s?.activePolicies} loading={loading} />
         <Stat icon={Wallet}     grad="from-brand to-teal"      label="Policy Value"     value={fmtINR(s?.policyValue)} loading={loading} money />
       </section>
 
       {/* Secondary stats */}
-      <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <MiniStat icon={CreditCard}  label="Paid"        value={s?.paidPayments} loading={loading} tone="teal" />
         <MiniStat icon={Clock}       label="Unpaid"      value={s?.pendingPayments} loading={loading} tone="amber" />
-        <MiniStat icon={Wallet}      label="Revenue"     value={fmtINR(s?.revenue)} loading={loading} tone="brand" money />
         <MiniStat icon={Building2}   label="Providers"   value={s?.totalProviders} loading={loading} tone="violet" />
         <MiniStat icon={Package}     label="Products"    value={s?.totalProducts} loading={loading} tone="brand" />
         <MiniStat icon={Layers}      label="Offerings"   value={s?.totalOfferings} loading={loading} tone="teal" />

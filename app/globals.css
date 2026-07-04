@@ -36,8 +36,8 @@
    Cards using `bg-white` are remapped to the dark surface.
    ==================================================== */
 .dark {
-  --color-ink: #f7f9fd;          /* primary text — near-white */
-  --color-ink-soft: #c2ccdf;     /* secondary text — brighter for legibility */
+  --color-ink: #f8fafe;          /* primary text — near-white */
+  --color-ink-soft: #d4ddf0;     /* secondary text — clearly light for legibility */
   --color-paper: #090e1a;        /* page background — deep navy */
   --color-surface: #18223c;      /* card background — clearly lifted off paper */
   --color-line: #303c5c;         /* hairline borders — visible on both tones */

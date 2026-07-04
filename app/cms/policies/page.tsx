@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, RefreshCw, ChevronDown } from "lucide-react";
+import { AlertCircle, RefreshCw, ChevronDown, Eye } from "lucide-react";
 
 import CmsShell from "@/components/cms/CmsShell";
+import PolicyDetailModal from "@/components/cms/PolicyDetailModal";
 import {
   Card, TableWrap, Th, Td, LoadingRows, EmptyRow, Pagination, SearchBox, Avatar, StatusPill,
   fmtINR, fmtDate, titleCase,
@@ -25,6 +26,7 @@ export default function CmsPoliciesPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [page, setPage] = useState(1);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -66,11 +68,11 @@ export default function CmsPoliciesPage() {
       <Card>
         <TableWrap>
           <thead><tr>
-            <Th>Customer</Th><Th>Insurer</Th><Th>Plan</Th><Th>Policy No.</Th><Th>Status</Th><Th className="text-right">Premium</Th><Th>Purchased</Th>
+            <Th>Customer</Th><Th>Insurer</Th><Th>Plan</Th><Th>Policy No.</Th><Th>Status</Th><Th className="text-right">Premium</Th><Th>Purchased</Th><Th className="text-right">View</Th>
           </tr></thead>
           <tbody>
-            {loading && !data ? <LoadingRows cols={7} />
-              : !data || data.rows.length === 0 ? <EmptyRow cols={7} label="No policies found." />
+            {loading && !data ? <LoadingRows cols={8} />
+              : !data || data.rows.length === 0 ? <EmptyRow cols={8} label="No policies found." />
               : data.rows.map((p) => (
                 <tr key={p.id} className="border-t border-line hover:bg-paper/60">
                   <Td>
@@ -88,6 +90,12 @@ export default function CmsPoliciesPage() {
                   <Td><StatusPill status={p.status} /></Td>
                   <Td className="text-right font-semibold">{fmtINR(p.premiumPaid)}</Td>
                   <Td className="text-ink-soft">{fmtDate(p.createdAt)}</Td>
+                  <Td className="text-right">
+                    <button onClick={() => setOpenId(p.id)} title="View policy details"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-line bg-white text-ink-soft transition hover:border-brand/40 hover:text-brand">
+                      <Eye className="h-4 w-4" />
+                    </button>
+                  </Td>
                 </tr>
               ))}
           </tbody>
@@ -96,6 +104,8 @@ export default function CmsPoliciesPage() {
           <Pagination page={data.page} pageCount={data.pageCount} total={data.total} onPage={setPage} busy={loading} />
         )}
       </Card>
+
+      {openId && <PolicyDetailModal policyId={openId} onClose={() => setOpenId(null)} />}
     </CmsShell>
   );
 }

@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ShieldCheck, FileText, Clock, Wallet, BadgeCheck, Loader2, Car, Download,
   ArrowRight, Sparkles, AlertCircle, CreditCard, ReceiptText, RefreshCw, ChevronDown,
-  SlidersHorizontal, X, Mail, Phone, Pencil, Check, CalendarDays,
+  SlidersHorizontal, X,
   ChevronLeft, ChevronRight,
 } from "lucide-react";
 
@@ -16,12 +16,10 @@ const POLICIES_PER_PAGE = 5;
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  getDashboard, updateProfile,
-  type Dashboard, type DashboardPolicy, type DashboardPayment, type DashboardUser, type ProfileUpdate,
+  getDashboard,
+  type Dashboard, type DashboardPolicy, type DashboardPayment,
 } from "@/services/dashboard";
 import { downloadPolicyPdf } from "@/services/policy";
-import { toE164 } from "@/services/auth";
-import type { AuthUser } from "@/types";
 
 /* ── helpers ── */
 const fmtINR = (n?: number | null) =>
@@ -44,7 +42,7 @@ const initials = (name?: string | null) =>
   (name ?? "GD").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "GD";
 
 export default function DashboardPage() {
-  const { user, ready, updateUser } = useAuth();
+  const { user, ready } = useAuth();
   const router = useRouter();
 
   const [data, setData] = useState<Dashboard | null>(null);
@@ -112,12 +110,6 @@ export default function DashboardPage() {
     setStatusFilter("all"); setProviderFilter("all"); setCategoryFilter("all"); setPage(1);
   };
 
-  // After a profile edit: refresh the auth session + the dashboard's user.
-  const handleProfileUpdated = (u: AuthUser) => {
-    updateUser(u);
-    setData((prev) => prev ? { ...prev, user: { id: u.id, name: u.name ?? null, email: u.email, phone: u.phone, dob: u.dob ?? null } } : prev);
-  };
-
   if (!ready || (ready && !user)) return <FullLoader />;
 
   const firstName = (user?.name ?? "").trim().split(/\s+/)[0] || "there";
@@ -146,9 +138,8 @@ export default function DashboardPage() {
 
         <div className="mx-auto max-w-295 px-4 sm:px-6">
           {/* ── Stats ── */}
-          <section className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <section className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
             <StatCard icon={FileText}   grad="from-brand to-brand" tint="from-brand/6 to-white"  border="border-brand/12" label="Total Policies" value={stats?.totalPolicies ?? 0}   loading={loading} />
-            <StatCard icon={BadgeCheck} grad="from-teal to-emerald-500" tint="from-teal/8 to-white" border="border-teal/15" label="Active"      value={stats?.activePolicies ?? 0}  loading={loading} />
             <StatCard icon={Clock}      grad="from-amber to-amber"  tint="from-amber/6 to-white"  border="border-amber/12" label="In Progress"    value={stats?.pendingPolicies ?? 0} loading={loading} />
             <StatCard icon={Wallet}     grad="from-teal to-brand"   filled                        label="Premium Value"  value={fmtINR(stats?.totalPremium)} loading={loading} />
           </section>
@@ -202,10 +193,8 @@ export default function DashboardPage() {
               )}
             </section>
 
-            {/* ── Profile + Payments ── */}
+            {/* ── Payments ── */}
             <aside className="lg:sticky lg:top-22 lg:self-start">
-              {data?.user && <ProfileCard user={data.user} onUpdated={handleProfileUpdated} />}
-
               <SectionHeader icon={ReceiptText} title="Recent Payments"
                 sub={data ? `${data.payments.length}` : ""} />
               {loading ? (
@@ -452,131 +441,6 @@ function SectionHeader({ icon: Icon, title, sub, busy }: { icon: React.ElementTy
       <h2 className="font-display text-lg font-bold text-ink">{title}</h2>
       {sub && <span className="rounded-full bg-paper px-2 py-0.5 text-[0.65rem] font-bold text-ink-soft">{sub}</span>}
       {busy && <Loader2 className="h-3.5 w-3.5 animate-spin text-brand" />}
-    </div>
-  );
-}
-
-/* ── profile ── */
-function ProfileCard({ user, onUpdated }: { user: DashboardUser; onUpdated: (u: AuthUser) => void }) {
-  const [editing, setEditing] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
-  const toLocal = () => ({
-    name: user.name ?? "",
-    email: user.email ?? "",
-    phone: (user.phone ?? "").replace(/\D/g, "").slice(-10),
-    dob: user.dob ?? "",
-  });
-  const [form, setForm] = useState(toLocal);
-
-  const startEdit = () => { setForm(toLocal()); setErr(null); setEditing(true); };
-  const set = (k: keyof ReturnType<typeof toLocal>) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }));
-
-  async function save() {
-    setBusy(true); setErr(null);
-    try {
-      const payload: ProfileUpdate = {};
-      if (form.name.trim()) payload.name = form.name.trim();
-      if (form.email.trim()) payload.email = form.email.trim();
-      if (form.phone.trim()) payload.phone = toE164(form.phone.trim());
-      if (form.dob) payload.dob = form.dob;
-      const updated = await updateProfile(payload);
-      onUpdated(updated);
-      setEditing(false);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't update your profile.");
-    } finally { setBusy(false); }
-  }
-
-  return (
-    <div className="mb-4 relative overflow-hidden rounded-2xl border border-line bg-white p-5 shadow-sm">
-      <div className="pointer-events-none absolute -right-14 -top-14 h-32 w-32 rounded-full bg-brand/5 blur-2xl" />
-      <div className="relative flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-brand to-violet text-sm font-extrabold text-white shadow-md shadow-brand/25">
-            {initials(user.name)}
-          </span>
-          <div>
-            <p className="text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">Your profile</p>
-            <p className="font-display text-sm font-bold text-ink">{user.name || "—"}</p>
-          </div>
-        </div>
-        {!editing && (
-          <button onClick={startEdit}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-bold text-brand transition hover:border-brand/40 hover:bg-brand/5">
-            <Pencil className="h-3.5 w-3.5" /> Edit
-          </button>
-        )}
-      </div>
-
-      {!editing ? (
-        <div className="relative mt-4 space-y-2.5">
-          <InfoRow icon={Mail} label="Email" value={user.email || "—"} />
-          <InfoRow icon={Phone} label="Phone" value={user.phone || "—"} />
-          <InfoRow icon={CalendarDays} label="Date of birth" value={user.dob || "—"} />
-        </div>
-      ) : (
-        <div className="relative mt-4 space-y-3">
-          <EditField label="Full name">
-            <input value={form.name} onChange={set("name")} placeholder="Your name" className={profileInput} />
-          </EditField>
-          <EditField label="Email">
-            <input type="email" value={form.email} onChange={set("email")} placeholder="you@example.com" className={profileInput} />
-          </EditField>
-          <EditField label="Phone">
-            <div className="flex items-stretch gap-2">
-              <span className="flex shrink-0 items-center rounded-lg border border-line bg-paper px-2.5 text-xs font-bold text-ink">+91</span>
-              <input inputMode="numeric" maxLength={10} value={form.phone}
-                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "") }))}
-                placeholder="10-digit number" className={profileInput} />
-            </div>
-          </EditField>
-          <EditField label="Date of birth">
-            <input type="date" max={new Date().toISOString().slice(0, 10)} value={form.dob} onChange={set("dob")} className={profileInput} />
-          </EditField>
-
-          {err && <p className="text-xs text-coral">{err}</p>}
-
-          <div className="flex items-center gap-2 pt-1">
-            <button onClick={save} disabled={busy}
-              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-linear-to-r from-brand to-violet py-2 text-xs font-bold text-white shadow-sm shadow-brand/25 hover:opacity-90 disabled:opacity-60">
-              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Save
-            </button>
-            <button onClick={() => { setEditing(false); setErr(null); }} disabled={busy}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-white px-3 py-2 text-xs font-bold text-ink-soft hover:bg-paper disabled:opacity-60">
-              <X className="h-3.5 w-3.5" /> Cancel
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-const profileInput =
-  "w-full rounded-lg border border-line bg-white px-3 py-2 text-xs font-semibold text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15";
-
-function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/8 text-brand">
-        <Icon className="h-4 w-4" />
-      </span>
-      <div className="min-w-0">
-        <p className="text-[0.62rem] font-bold uppercase tracking-wide text-ink-soft">{label}</p>
-        <p className="truncate text-xs font-bold text-ink">{value}</p>
-      </div>
-    </div>
-  );
-}
-
-function EditField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="mb-1 block text-[0.62rem] font-bold uppercase tracking-wide text-ink-soft">{label}</label>
-      {children}
     </div>
   );
 }

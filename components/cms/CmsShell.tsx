@@ -23,6 +23,22 @@ const NAV = [
 
 const initial = (name?: string | null) => (name ?? "A").trim().charAt(0).toUpperCase();
 
+// Shared brand shield (same mark as the public site navbar).
+function LogoMark() {
+  return (
+    <svg className="h-9 w-9 shrink-0" viewBox="0 0 40 46" fill="none" aria-hidden>
+      <defs>
+        <linearGradient id="cms-shield" x1="4" y1="2" x2="36" y2="44" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#2E6BFF" />
+          <stop offset="1" stopColor="#12B39B" />
+        </linearGradient>
+      </defs>
+      <path d="M20 2l16 6v13c0 12-7 20-16 23C11 41 4 33 4 21V8l16-6z" fill="url(#cms-shield)" />
+      <path d="M13.5 23.5l4.5 4.5 9-11" stroke="white" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function CmsShell({ title, children }: { title: string; children: React.ReactNode }) {
   const { admin, ready, signOut } = useAdminAuth();
   const router = useRouter();
@@ -47,10 +63,13 @@ export default function CmsShell({ title, children }: { title: string; children:
       {/* Sidebar (desktop) */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-white lg:flex">
         <div className="flex items-center gap-2.5 border-b border-line px-5 py-4">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-br from-brand to-violet shadow-md shadow-brand/25">
-            <LayoutDashboard className="h-5 w-5 text-white" strokeWidth={2} />
+          <LogoMark />
+          <span className="leading-tight">
+            <span className="block font-display text-[0.95rem] font-bold text-ink">
+              Vedant <span className="text-brand">Insurance</span>
+            </span>
+            <span className="text-[0.56rem] font-bold uppercase tracking-wider text-ink-soft">Admin Console</span>
           </span>
-          <span className="font-display text-base font-bold text-ink">Vedant <span className="text-brand">CMS</span></span>
         </div>
         <nav className="flex-1 space-y-1 p-3">
           {NAV.map((n, i) => {
@@ -60,7 +79,7 @@ export default function CmsShell({ title, children }: { title: string; children:
             return (
               <div key={n.href}>
                 {showGroup && (
-                  <p className="px-3 pb-1.5 pt-3 text-[0.62rem] font-bold uppercase tracking-wider text-ink-soft/60">{n.group}</p>
+                  <p className="px-3 pb-1.5 pt-3 text-[0.62rem] font-bold uppercase tracking-wider text-ink-soft">{n.group}</p>
                 )}
                 <Link href={n.href}
                   className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
