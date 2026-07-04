@@ -11,9 +11,14 @@ import {
   Wrench,
   Sparkles,
   ArrowRight,
+  ShoppingCart,
+  Check,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PlanDetailDrawer from "@/components/quotes/PlanDetailDrawer";
+import { useAuth } from "@/hooks/useAuth";
+import { useCart } from "@/hooks/useCart";
 import type { InsurancePlan } from "@/types";
 
 interface PlanCardProps {
@@ -56,18 +61,48 @@ function CoverageTypeBadge({ type }: { type: InsurancePlan["coverageType"] }) {
 
 export default function PlanCard({ plan, index }: PlanCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [adding, setAdding] = useState(false);
   const router = useRouter();
+  const { user } = useAuth();
+  const { add, has } = useCart();
+  const inCart = has(plan.id);
 
-  // Carry the quote inputs (already in the URL) + this plan's identifiers
-  // onto the proposal page.
-  function buyNow() {
+  // The quote inputs (already in the URL) + this plan's identifiers form the
+  // query string that resumes checkout on the proposal page.
+  function proposalParams() {
     const params = new URLSearchParams(window.location.search);
     params.set("enquiryId", plan.id);
     params.set("premium", String(plan.premiumAmount));
     params.set("insurer", plan.insurerName);
     // Carry the chosen insurer offering so create-quote targets the right provider.
     if (plan.providerProductId) params.set("providerProductId", plan.providerProductId);
-    router.push(`/proposal?${params.toString()}`);
+    return params;
+  }
+
+  function buyNow() {
+    router.push(`/proposal?${proposalParams().toString()}`);
+  }
+
+  // Save the quote to the cart to buy later. Already saved → jump to the cart.
+  async function saveToCart() {
+    if (!user) { router.push(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`); return; }
+    if (inCart) { router.push("/cart"); return; }
+    setAdding(true);
+    try {
+      const params = proposalParams();
+      await add({
+        enquiryId: plan.id,
+        proposalQuery: params.toString(),
+        providerProductId: plan.providerProductId ?? undefined,
+        insurerName: plan.insurerName,
+        premium: plan.premiumAmount,
+        category: params.get("category") ?? undefined,
+        coverageType: plan.coverageType,
+        vehicleLabel: params.get("licensePlateNumber") ?? undefined,
+      });
+    } catch {
+      /* the cart provider keeps prior state; a toast could surface the error */
+    } finally { setAdding(false); }
   }
 
   return (
@@ -216,6 +251,20 @@ export default function PlanCard({ plan, index }: PlanCardProps) {
               className="text-xs"
             >
               Details
+            </Button>
+            <Button
+              id={`cart-${plan.id}`}
+              variant="outline"
+              size="sm"
+              onClick={saveToCart}
+              disabled={adding}
+              title={inCart ? "In cart — view cart" : "Save to cart"}
+              className={`gap-1.5 text-xs ${inCart ? "border-teal/40 text-teal" : "text-brand"}`}
+            >
+              {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : inCart ? <Check className="h-3.5 w-3.5" />
+                : <ShoppingCart className="h-3.5 w-3.5" />}
+              {inCart ? "In cart" : "Add to cart"}
             </Button>
             <Button
               id={`buy-${plan.id}`}

@@ -27,6 +27,49 @@
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 
+/* Enable `dark:` utilities driven by a `.dark` class on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ====================================================
+   DARK THEME — override the neutral tokens so the whole
+   app flips (brand/violet/teal accents stay the same).
+   Cards using `bg-white` are remapped to the dark surface.
+   ==================================================== */
+.dark {
+  --color-ink: #f7f9fd;          /* primary text — near-white */
+  --color-ink-soft: #c2ccdf;     /* secondary text — brighter for legibility */
+  --color-paper: #090e1a;        /* page background — deep navy */
+  --color-surface: #18223c;      /* card background — clearly lifted off paper */
+  --color-line: #303c5c;         /* hairline borders — visible on both tones */
+  color-scheme: dark;
+}
+.dark body { background-color: var(--color-paper); color: var(--color-ink); }
+
+/* Brand/violet are dark blue/purple — great as button fills (white text on them)
+   but hard to read as TEXT on the deep navy background. Brighten only the text
+   utilities; fills (bg-brand, gradient buttons) keep the saturated colour. */
+.dark .text-brand { color: #7d9bff; }
+.dark .text-violet { color: #b6a2fb; }
+.dark .from-brand.bg-clip-text { --tw-gradient-from: #7d9bff; }
+.dark .to-violet.bg-clip-text  { --tw-gradient-to: #b6a2fb; }
+
+/* Most cards use a literal `bg-white`; remap it to the dark surface. */
+.dark .bg-white { background-color: var(--color-surface); }
+.dark .bg-white\/60,
+.dark .bg-white\/70,
+.dark .bg-white\/80,
+.dark .bg-white\/85,
+.dark .bg-white\/90,
+.dark .bg-white\/95,
+.dark .bg-white\/96 { background-color: color-mix(in srgb, var(--color-surface) 82%, transparent); }
+
+/* Gradient stops of `white` (e.g. hero `from-white via-white to-paper`) aren't
+   covered by the bg-white remap above — they'd stay light and hide the
+   (now-light) text. Flip solid white gradient stops to the dark surface too. */
+.dark .from-white { --tw-gradient-from: var(--color-surface); }
+.dark .via-white  { --tw-gradient-via: var(--color-surface); }
+.dark .to-white   { --tw-gradient-to: var(--color-surface); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;

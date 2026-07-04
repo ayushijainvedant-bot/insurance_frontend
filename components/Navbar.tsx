@@ -3,11 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Menu, X, Phone, ShieldCheck, HeartPulse, Bike, Car, TrendingUp, Sparkles } from "lucide-react";
+import { ChevronDown, Menu, X, Phone, ShieldCheck, HeartPulse, Bike, Car, TrendingUp, Sparkles, ShoppingCart } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import ThemeToggle from "@/components/ThemeToggle";
 import UserMenu from "@/components/UserMenu";
+import ComingSoonToast from "@/components/ComingSoonToast";
 import { useAuth } from "@/hooks/useAuth";
+import { useCart } from "@/hooks/useCart";
+import { useProducts } from "@/hooks/useProducts";
 import { useQuoteModal } from "@/hooks/useQuoteModal";
 import type { QuoteTabId } from "@/types";
 
@@ -27,16 +31,15 @@ const NAV = [
 
 function LogoMark() {
   return (
-    <svg className="h-8 w-8 shrink-0" viewBox="0 0 40 40" fill="none">
+    <svg className="h-9 w-9 shrink-0" viewBox="0 0 40 46" fill="none" aria-hidden>
       <defs>
-        <linearGradient id="lg" x1="0" y1="0" x2="40" y2="40">
-          <stop stopColor="#2952FF" />
-          <stop offset="1" stopColor="#7C3AED" />
+        <linearGradient id="shield" x1="4" y1="2" x2="36" y2="44" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#2E6BFF" />
+          <stop offset="1" stopColor="#12B39B" />
         </linearGradient>
       </defs>
-      <rect width="40" height="40" rx="10" fill="url(#lg)" />
-      <path d="M20 10l7 3v6c0 5-3.2 8.2-7 9.5C16.2 27.2 13 24 13 19v-6l7-3z" fill="white" />
-      <path d="M16.5 19.6l2.6 2.6 5-5.6" stroke="#2952FF" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20 2l16 6v13c0 12-7 20-16 23C11 41 4 33 4 21V8l16-6z" fill="url(#shield)" />
+      <path d="M13.5 23.5l4.5 4.5 9-11" stroke="white" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -44,8 +47,39 @@ function LogoMark() {
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [productsOpen, setProductsOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const { user, ready, signOut } = useAuth();
+  const { count } = useCart();
+  const { categories } = useProducts();
   const { openQuote } = useQuoteModal();
+
+  // A plan is quotable when the backend has insurers for it. While the products
+  // list is still loading (empty), allow the click — the modal gates it anyway.
+  const isQuotable = (id: QuoteTabId) =>
+    categories.length === 0 || categories.some((c) => c.id === id && c.isQuotable);
+
+  // Open the quote modal for a live plan; otherwise show a "coming soon" toast.
+  const selectPlan = (id: QuoteTabId, label: string, close: () => void) => {
+    close();
+    if (isQuotable(id)) openQuote(id);
+    else setToast(`${label} is coming soon — stay tuned!`);
+  };
+
+  // Cart icon + count badge (only meaningful when signed in).
+  const cartButton = ready && user && (
+    <Link
+      href="/cart"
+      aria-label="Cart"
+      className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-white text-ink transition hover:border-brand/40 hover:text-brand"
+    >
+      <ShoppingCart className="h-4 w-4" />
+      {count > 0 && (
+        <span className="absolute -right-1.5 -top-1.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-linear-to-r from-brand to-violet px-1 text-[0.6rem] font-bold text-white shadow-sm">
+          {count > 9 ? "9+" : count}
+        </span>
+      )}
+    </Link>
+  );
 
   const quoteButton = (
     <Button
@@ -61,24 +95,29 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-line/70 bg-white/80 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-295 items-center justify-between gap-4 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-3 sm:px-4">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5">
+        <Link href="/" className="flex shrink-0 items-center gap-2.5">
           <LogoMark />
-          <span className="font-display text-[1.05rem] font-bold text-ink">
-            vedant<span className="text-brand">insurance</span>
+          <span className="leading-tight">
+            <span className="block whitespace-nowrap font-display text-[1.02rem] font-bold text-ink">
+              Vedant <span className="text-brand">Insurance</span>
+            </span>
+            <span className="hidden whitespace-nowrap text-[0.58rem] font-semibold tracking-wide text-ink-soft xl:block">
+              Secure Today, Protected Tomorrow
+            </span>
           </span>
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden items-center gap-6 lg:flex">
+        <nav className="hidden items-center gap-5 lg:flex">
           {/* Products dropdown — hand-rolled so we can hover-open without needing Radix */}
           <div
             className="relative"
             onMouseEnter={() => setProductsOpen(true)}
             onMouseLeave={() => setProductsOpen(false)}
           >
-            <button className={`relative flex items-center gap-1 text-sm font-semibold transition-colors after:absolute after:-bottom-1.5 after:left-0 after:h-0.5 after:rounded-full after:bg-linear-to-r after:from-brand after:to-violet after:transition-all ${productsOpen ? "text-brand after:w-full" : "text-ink/80 hover:text-brand after:w-0"}`}>
+            <button className={`relative flex items-center gap-1 whitespace-nowrap text-sm font-semibold transition-colors after:absolute after:-bottom-1.5 after:left-0 after:h-0.5 after:rounded-full after:bg-linear-to-r after:from-brand after:to-violet after:transition-all ${productsOpen ? "text-brand after:w-full" : "text-ink hover:text-brand after:w-0"}`}>
               Our Insurance
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${productsOpen ? "rotate-180" : ""}`} />
             </button>
@@ -98,7 +137,7 @@ export default function Navbar() {
                       <button
                         key={p.label}
                         type="button"
-                        onClick={() => { openQuote(p.id); setProductsOpen(false); }}
+                        onClick={() => selectPlan(p.id, p.label, () => setProductsOpen(false))}
                         className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-paper"
                       >
                         <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${p.bg}`}>
@@ -115,7 +154,7 @@ export default function Navbar() {
 
           {NAV.map((l) => (
             <a key={l.label} href={l.href}
-              className="relative text-sm font-semibold text-ink/80 transition-colors hover:text-brand after:absolute after:-bottom-1.5 after:left-0 after:h-0.5 after:w-0 after:rounded-full after:bg-linear-to-r after:from-brand after:to-violet after:transition-all hover:after:w-full">
+              className="relative whitespace-nowrap text-sm font-semibold text-ink transition-colors hover:text-brand after:absolute after:-bottom-1.5 after:left-0 after:h-0.5 after:w-0 after:rounded-full after:bg-linear-to-r after:from-brand after:to-violet after:transition-all hover:after:w-full">
               {l.label}
             </a>
           ))}
@@ -123,18 +162,20 @@ export default function Navbar() {
 
         {/* Right actions */}
         <div className="hidden items-center gap-2.5 lg:flex">
-          <a href="#" className="flex items-center gap-1.5 rounded-full border border-line bg-paper/70 px-3 py-1.5 text-xs font-bold text-ink/70 transition hover:border-brand/30 hover:text-brand">
+          <a href="#" className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-paper/70 px-3 py-1.5 text-xs font-bold text-ink transition hover:border-brand/30 hover:text-brand">
             <Phone className="h-3.5 w-3.5 text-brand" /> 1800-XXX-XXXX
           </a>
           {/* Auth slot: the signed-out "Sign in" button is the default so
               SSR and the first client render agree (no hydration mismatch);
               once `ready` confirms a stored session we swap to the chip. */}
+          <ThemeToggle />
+          {cartButton}
           {ready && user
             ? <UserMenu user={user} onSignOut={signOut} />
             : (
               <>
-                <Button asChild variant="ghost" size="sm"><Link href="/login">Sign in</Link></Button>
-                <Button asChild variant="outline" size="sm"><Link href="/signup">Create account</Link></Button>
+                <Button asChild variant="ghost" size="sm" className="text-ink hover:text-brand"><Link href="/login">Sign in</Link></Button>
+                <Button asChild variant="solid" size="sm" className="border border-brand bg-brand font-bold text-white shadow-sm hover:bg-brand-dark"><Link href="/signup">Create account</Link></Button>
               </>
             )
           }
@@ -142,14 +183,17 @@ export default function Navbar() {
           {quoteButton}
         </div>
 
-        {/* Mobile hamburger */}
-        <button
-          className="flex h-9 w-9 items-center justify-center text-ink lg:hidden"
-          aria-label="Toggle menu"
-          onClick={() => setMobileOpen((o) => !o)}
-        >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        {/* Mobile: theme toggle + hamburger */}
+        <div className="flex items-center gap-1.5 lg:hidden">
+          <ThemeToggle />
+          <button
+            className="flex h-9 w-9 items-center justify-center text-ink"
+            aria-label="Toggle menu"
+            onClick={() => setMobileOpen((o) => !o)}
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile nav */}
@@ -170,7 +214,7 @@ export default function Navbar() {
                 const Icon = p.icon;
                 return (
                   <button key={p.label} type="button"
-                    onClick={() => { openQuote(p.id); setMobileOpen(false); }}
+                    onClick={() => selectPlan(p.id, p.label, () => setMobileOpen(false))}
                     className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left hover:bg-paper">
                     <Icon className={`h-4 w-4 ${p.color}`} strokeWidth={1.8} />
                     <span className="text-sm font-semibold text-ink">{p.label}</span>
@@ -180,7 +224,7 @@ export default function Navbar() {
               <div className="my-2 h-px bg-line" />
               {NAV.map((l) => (
                 <a key={l.label} href={l.href}
-                  className="rounded-lg px-2 py-2.5 text-sm font-semibold text-ink/80 hover:bg-paper">
+                  className="rounded-lg px-2 py-2.5 text-sm font-semibold text-ink hover:bg-paper">
                   {l.label}
                 </a>
               ))}
@@ -205,6 +249,7 @@ export default function Navbar() {
         )}
       </AnimatePresence>
 
+      <ComingSoonToast message={toast} onDone={() => setToast(null)} />
     </header>
   );
 }

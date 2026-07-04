@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { useProducts } from "@/hooks/useProducts";
 import { useQuoteModal } from "@/hooks/useQuoteModal";
+import ComingSoonToast from "@/components/ComingSoonToast";
 import type { QuoteTabId } from "@/types";
 
 const BADGE: Record<string, string> = {
@@ -27,6 +29,7 @@ const ACCENT: Record<string, string> = {
 export default function CategoryGrid() {
   const { categories, loading, error } = useProducts();
   const { openQuote } = useQuoteModal();
+  const [toast, setToast] = useState<string | null>(null);
 
   return (
     <section className="bg-paper px-4 py-14 sm:px-6">
@@ -84,7 +87,11 @@ export default function CategoryGrid() {
             return (
               <motion.button
                 type="button"
-                onClick={() => openQuote(cat.id as QuoteTabId)}
+                onClick={() =>
+                  cat.isQuotable
+                    ? openQuote(cat.id as QuoteTabId)
+                    : setToast(`${cat.name} is coming soon — stay tuned!`)
+                }
                 key={cat.id}
                 initial={{ opacity: 0, y: 14 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -119,9 +126,15 @@ export default function CategoryGrid() {
 
                 {/* CTA strip */}
                 <div className="border-t border-line px-4 py-3">
-                  <span className="block w-full text-center text-sm font-bold text-brand group-hover:underline">
-                    {cat.cta} →
-                  </span>
+                  {cat.isQuotable ? (
+                    <span className="block w-full text-center text-sm font-bold text-brand group-hover:underline">
+                      {cat.cta} →
+                    </span>
+                  ) : (
+                    <span className="block w-full text-center text-sm font-bold text-ink-soft">
+                      Coming soon
+                    </span>
+                  )}
                 </div>
               </motion.button>
             );
@@ -129,6 +142,8 @@ export default function CategoryGrid() {
         </div>
         )}
       </div>
+
+      <ComingSoonToast message={toast} onDone={() => setToast(null)} />
     </section>
   );
 }

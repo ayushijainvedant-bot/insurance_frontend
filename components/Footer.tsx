@@ -71,7 +71,9 @@ function LogoMark() {
 
 export default function Footer() {
   return (
-    <footer className="bg-ink text-white">
+    // Always-dark footer, pinned to the navy (light-mode `ink`) so it doesn't
+    // flip to a light surface in dark mode where `--color-ink` becomes light.
+    <footer className="bg-[#0f172a] text-white">
       {/* CTA banner */}
       <div className="bg-linear-to-r from-brand to-violet px-4 py-12 sm:px-6">
         <div className="mx-auto flex max-w-295 flex-col items-center gap-6 text-center sm:flex-row sm:justify-between sm:text-left">

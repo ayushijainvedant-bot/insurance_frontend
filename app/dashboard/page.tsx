@@ -7,8 +7,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ShieldCheck, FileText, Clock, Wallet, BadgeCheck, Loader2, Car, Download,
   ArrowRight, Sparkles, AlertCircle, CreditCard, ReceiptText, RefreshCw, ChevronDown,
-  SlidersHorizontal, X, Mail, Phone, Pencil, Check, User as UserIcon, CalendarDays,
+  SlidersHorizontal, X, Mail, Phone, Pencil, Check, CalendarDays,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
+
+const POLICIES_PER_PAGE = 5;
 
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/hooks/useAuth";
@@ -45,14 +48,16 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const [data, setData] = useState<Dashboard | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);        // initial load (no data yet)
+  const [refetching, setRefetching] = useState(false); // filter/page refetch
   const [error, setError] = useState<string | null>(null);
 
-  // Policy filters (client-side — everything's already loaded).
+  // Policy filters + pagination — server-driven.
   const [statusFilter, setStatusFilter] = useState("all");       // exact policy status
   const [providerFilter, setProviderFilter] = useState("all");   // provider code
   const [categoryFilter, setCategoryFilter] = useState("all");   // product category
-  const [paymentFilter, setPaymentFilter] = useState("all");     // exact payment status
+  const [paymentFilter, setPaymentFilter] = useState("all");     // client-side, on recent payments
+  const [page, setPage] = useState(1);
 
   // Auth gate — bounce to login (preserving the return path) once we know
   // there's no session.
@@ -61,56 +66,51 @@ export default function DashboardPage() {
   }, [ready, user, router]);
 
   const load = useCallback(async () => {
-    setLoading(true); setError(null);
+    setError(null); setRefetching(true);
     try {
-      setData(await getDashboard());
+      setData(await getDashboard({
+        page, limit: POLICIES_PER_PAGE,
+        status: statusFilter, provider: providerFilter, category: categoryFilter,
+      }));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't load your dashboard.");
-    } finally { setLoading(false); }
-  }, []);
+    } finally { setRefetching(false); setLoading(false); }
+  }, [page, statusFilter, providerFilter, categoryFilter]);
 
-  /* eslint-disable-next-line react-hooks/set-state-in-effect -- fetch dashboard data once the user is known. */
+  /* eslint-disable-next-line react-hooks/set-state-in-effect -- (re)fetch when the user or query changes. */
   useEffect(() => { if (user) load(); }, [user, load]);
 
-  const policies = data?.policies ?? [];
   const payments = data?.payments ?? [];
+  const policiesPage = data?.policies;
+  const policyRows = policiesPage?.rows ?? [];
+  const total = policiesPage?.total ?? 0;
+  const pageCount = policiesPage?.pageCount ?? 1;
+  const currentPage = policiesPage?.page ?? page;
+  const perPage = policiesPage?.limit ?? POLICIES_PER_PAGE;
 
-  // Distinct filter options, derived from the loaded data (only what's present).
-  const statusOptions = useMemo(() => {
-    const m = new Map<string, string>();
-    policies.forEach((p) => { if (p.status) m.set(p.status, titleCase(p.status)); });
-    return [...m].map(([value, label]) => ({ value, label }));
-  }, [policies]);
-  const providerOptions = useMemo(() => {
-    const m = new Map<string, string>();
-    policies.forEach((p) => { if (p.provider?.code) m.set(p.provider.code, p.provider.name); });
-    return [...m].map(([value, label]) => ({ value, label }));
-  }, [policies]);
-  const categoryOptions = useMemo(() => {
-    const m = new Map<string, string>();
-    policies.forEach((p) => { if (p.category) m.set(p.category, p.productName ?? titleCase(p.category)); });
-    return [...m].map(([value, label]) => ({ value, label }));
-  }, [policies]);
+  // Filter dropdown options come from the server (account-wide distinct values).
+  const statusOptions = (data?.filters.statuses ?? []).map((s) => ({ value: s, label: titleCase(s) }));
+  const providerOptions = (data?.filters.providers ?? []).map((p) => ({ value: p.code, label: p.name }));
+  const categoryOptions = (data?.filters.categories ?? []).map((c) => ({ value: c.value, label: c.label }));
+
   const paymentStatusOptions = useMemo(() => {
     const m = new Map<string, string>();
     payments.forEach((p) => { if (p.status) m.set(p.status, titleCase(p.status)); });
     return [...m].map(([value, label]) => ({ value, label }));
   }, [payments]);
-
-  const filteredPolicies = useMemo(() => policies.filter((p) => {
-    const statusOk = statusFilter === "all" || p.status === statusFilter;
-    const providerOk = providerFilter === "all" || p.provider?.code === providerFilter;
-    const categoryOk = categoryFilter === "all" || p.category === categoryFilter;
-    return statusOk && providerOk && categoryOk;
-  }), [policies, statusFilter, providerFilter, categoryFilter]);
-
   const filteredPayments = useMemo(
     () => payments.filter((p) => paymentFilter === "all" || p.status === paymentFilter),
     [payments, paymentFilter],
   );
 
+  // Changing a filter resets to page 1 (both state updates batch → one refetch).
+  const changeStatus = (v: string) => { setStatusFilter(v); setPage(1); };
+  const changeProvider = (v: string) => { setProviderFilter(v); setPage(1); };
+  const changeCategory = (v: string) => { setCategoryFilter(v); setPage(1); };
   const filtersActive = statusFilter !== "all" || providerFilter !== "all" || categoryFilter !== "all";
-  const clearFilters = () => { setStatusFilter("all"); setProviderFilter("all"); setCategoryFilter("all"); };
+  const clearFilters = () => {
+    setStatusFilter("all"); setProviderFilter("all"); setCategoryFilter("all"); setPage(1);
+  };
 
   // After a profile edit: refresh the auth session + the dashboard's user.
   const handleProfileUpdated = (u: AuthUser) => {
@@ -168,28 +168,35 @@ export default function DashboardPage() {
             {/* ── Policies ── */}
             <section>
               <SectionHeader icon={ShieldCheck} title="Your Policies"
-                sub={data ? `${data.policies.length} total` : ""} />
+                sub={data ? `${data.stats.totalPolicies} total` : ""}
+                busy={refetching} />
 
               {loading ? (
                 <SkeletonList rows={3} />
-              ) : !data || data.policies.length === 0 ? (
+              ) : (data?.stats.totalPolicies ?? 0) === 0 ? (
                 <EmptyState />
               ) : (
                 <>
                   <FilterBar
-                    status={statusFilter} onStatus={setStatusFilter} statusOptions={statusOptions}
-                    provider={providerFilter} onProvider={setProviderFilter}
-                    category={categoryFilter} onCategory={setCategoryFilter}
+                    status={statusFilter} onStatus={changeStatus} statusOptions={statusOptions}
+                    provider={providerFilter} onProvider={changeProvider}
+                    category={categoryFilter} onCategory={changeCategory}
                     providerOptions={providerOptions} categoryOptions={categoryOptions}
                     active={filtersActive} onClear={clearFilters}
-                    showing={filteredPolicies.length} total={policies.length}
+                    showing={total} total={data?.stats.totalPolicies ?? total}
                   />
-                  {filteredPolicies.length === 0 ? (
+                  {total === 0 ? (
                     <NoMatches onClear={clearFilters} />
                   ) : (
-                    <div className="space-y-3">
-                      {filteredPolicies.map((p, i) => <PolicyCard key={p.id} policy={p} index={i} />)}
-                    </div>
+                    <>
+                      <div className={`space-y-3 transition-opacity ${refetching ? "opacity-60" : ""}`}>
+                        {policyRows.map((p, i) => <PolicyCard key={p.id} policy={p} index={i} />)}
+                      </div>
+                      <Pagination
+                        page={currentPage} pageCount={pageCount} onPage={setPage}
+                        total={total} perPage={perPage}
+                      />
+                    </>
                   )}
                 </>
               )}
@@ -318,17 +325,12 @@ function PolicyCard({ policy, index }: { policy: DashboardPolicy; index: number 
             className="relative overflow-hidden"
           >
             <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-1 rounded-2xl border border-violet/12 bg-white/70 p-4 sm:grid-cols-2">
-              <DetailRow label="Provider" value={policy.provider?.name} />
-              <DetailRow label="Provider code" value={policy.provider?.code} />
-              <DetailRow label="Product" value={pp?.product?.name ?? policy.productName} />
-              <DetailRow label="Product code" value={pp?.productCode} />
-              <DetailRow label="Sub-product code" value={pp?.subProductCode} />
-              <DetailRow label="Category" value={titleCase(policy.category)} />
+              <DetailRow label="Insurer" value={policy.provider?.name} />
+              <DetailRow label="Plan" value={pp?.product?.name ?? policy.productName} />
+              <DetailRow label="Vehicle type" value={titleCase(policy.category)} />
               <DetailRow label="Policy number" value={policy.policyNumber} mono />
-              <DetailRow label="Application ID" value={policy.applicationId} mono />
-              <DetailRow label="Provider product ID" value={policy.providerProductId} mono />
               <DetailRow label="Status" value={titleCase(policy.status)} />
-              <DetailRow label="Start date" value={fmtDate(policy.startDate)} />
+              <DetailRow label="Cover starts" value={fmtDate(policy.startDate)} />
               <DetailRow label="Valid till" value={fmtDate(policy.endDate)} />
               <DetailRow label="Premium paid" value={fmtINR(policy.premiumPaid)} />
               <DetailRow label="Purchased on" value={fmtDate(policy.createdAt)} />
@@ -441,7 +443,7 @@ function Meta({ icon: Icon, label, value, mono }: {
   );
 }
 
-function SectionHeader({ icon: Icon, title, sub }: { icon: React.ElementType; title: string; sub?: string }) {
+function SectionHeader({ icon: Icon, title, sub, busy }: { icon: React.ElementType; title: string; sub?: string; busy?: boolean }) {
   return (
     <div className="mb-3.5 flex items-center gap-2.5">
       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-brand to-violet shadow-sm shadow-brand/25">
@@ -449,6 +451,7 @@ function SectionHeader({ icon: Icon, title, sub }: { icon: React.ElementType; ti
       </span>
       <h2 className="font-display text-lg font-bold text-ink">{title}</h2>
       {sub && <span className="rounded-full bg-paper px-2 py-0.5 text-[0.65rem] font-bold text-ink-soft">{sub}</span>}
+      {busy && <Loader2 className="h-3.5 w-3.5 animate-spin text-brand" />}
     </div>
   );
 }
@@ -624,6 +627,51 @@ function FilterSelect({ value, onChange, options }: {
       </select>
       <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-soft" />
     </div>
+  );
+}
+
+function Pagination({ page, pageCount, onPage, total, perPage }: {
+  page: number; pageCount: number; onPage: (p: number) => void; total: number; perPage: number;
+}) {
+  if (pageCount <= 1) return null;
+  const start = (page - 1) * perPage + 1;
+  const end = Math.min(page * perPage, total);
+  const pages = Array.from({ length: pageCount }, (_, i) => i + 1);
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+      <span className="text-xs text-ink-soft">
+        Showing <b className="text-ink">{start}–{end}</b> of {total}
+      </span>
+      <div className="flex items-center gap-1">
+        <PageBtn disabled={page <= 1} onClick={() => onPage(page - 1)} label="Previous page">
+          <ChevronLeft className="h-4 w-4" />
+        </PageBtn>
+        {pages.map((n) => (
+          <button key={n} onClick={() => onPage(n)}
+            className={`h-8 min-w-8 rounded-lg px-2 text-xs font-bold transition ${
+              n === page
+                ? "bg-linear-to-r from-brand to-violet text-white shadow-sm shadow-brand/25"
+                : "border border-line bg-white text-ink-soft hover:border-brand/40 hover:text-brand"
+            }`}>
+            {n}
+          </button>
+        ))}
+        <PageBtn disabled={page >= pageCount} onClick={() => onPage(page + 1)} label="Next page">
+          <ChevronRight className="h-4 w-4" />
+        </PageBtn>
+      </div>
+    </div>
+  );
+}
+
+function PageBtn({ disabled, onClick, children, label }: {
+  disabled: boolean; onClick: () => void; children: React.ReactNode; label: string;
+}) {
+  return (
+    <button onClick={onClick} disabled={disabled} aria-label={label}
+      className="flex h-8 w-8 items-center justify-center rounded-lg border border-line bg-white text-ink-soft transition hover:border-brand/40 hover:text-brand disabled:cursor-not-allowed disabled:opacity-40">
+      {children}
+    </button>
   );
 }
 

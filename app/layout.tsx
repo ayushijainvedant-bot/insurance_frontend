@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/hooks/useAuth";
+import { CartProvider } from "@/hooks/useCart";
 import { ProductsProvider } from "@/hooks/useProducts";
 import { QuoteModalProvider } from "@/hooks/useQuoteModal";
 
@@ -14,8 +15,14 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Apply the saved (or system) theme before paint to avoid a flash. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');}}catch(e){}`,
+          }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
@@ -25,9 +32,11 @@ export default function RootLayout({
       </head>
       <body className="bg-paper text-ink font-body antialiased">
         <AuthProvider>
-          <ProductsProvider>
-            <QuoteModalProvider>{children}</QuoteModalProvider>
-          </ProductsProvider>
+          <CartProvider>
+            <ProductsProvider>
+              <QuoteModalProvider>{children}</QuoteModalProvider>
+            </ProductsProvider>
+          </CartProvider>
         </AuthProvider>
       </body>
     </html>

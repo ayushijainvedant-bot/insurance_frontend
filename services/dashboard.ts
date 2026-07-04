@@ -66,21 +66,56 @@ export interface DashboardUser {
   dob: string | null;
 }
 
+export interface DashboardFilters {
+  statuses: string[];
+  providers: { code: string; name: string }[];
+  categories: { value: string; label: string }[];
+}
+
+export interface PoliciesPage {
+  rows: DashboardPolicy[];
+  total: number;
+  page: number;
+  limit: number;
+  pageCount: number;
+}
+
 export interface Dashboard {
   user: DashboardUser | null;
   stats: DashboardStats;
-  policies: DashboardPolicy[];
+  filters: DashboardFilters;
+  policies: PoliciesPage;
   payments: DashboardPayment[];
 }
 
-export async function getDashboard(): Promise<Dashboard> {
+export interface DashboardQuery {
+  page?: number;
+  limit?: number;
+  status?: string;    // exact policy status
+  provider?: string;  // provider code
+  category?: string;  // product category
+}
+
+const EMPTY_FILTERS: DashboardFilters = { statuses: [], providers: [], categories: [] };
+const emptyPolicies = (page: number, limit: number): PoliciesPage => ({
+  rows: [], total: 0, page, limit, pageCount: 1,
+});
+
+export async function getDashboard(query: DashboardQuery = {}): Promise<Dashboard> {
+  const { page = 1, limit = 5, status, provider, category } = query;
+  const params: Record<string, string | number> = { page, limit };
+  if (status && status !== "all") params.status = status;
+  if (provider && provider !== "all") params.provider = provider;
+  if (category && category !== "all") params.category = category;
+
   try {
-    const { data } = await api.get<{ data?: Dashboard }>("/user/dashboard");
+    const { data } = await api.get<{ data?: Dashboard }>("/user/dashboard", { params });
     const d = data?.data;
     return {
       user: d?.user ?? null,
       stats: d?.stats ?? { totalPolicies: 0, activePolicies: 0, pendingPolicies: 0, totalPremium: 0 },
-      policies: d?.policies ?? [],
+      filters: d?.filters ?? EMPTY_FILTERS,
+      policies: d?.policies ?? emptyPolicies(page, limit),
       payments: d?.payments ?? [],
     };
   } catch (err) {
