@@ -197,6 +197,7 @@ export default function VehicleSummaryBar({
                 <FilterSidebar
                   filters={filters}
                   sortKey={sortKey}
+                  catalog={context.filterCatalog}
                   onFiltersChange={onFiltersChange}
                   onSortChange={onSortChange}
                   onClearAll={() => {

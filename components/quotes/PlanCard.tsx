@@ -19,11 +19,13 @@ import { Button } from "@/components/ui/button";
 import PlanDetailDrawer from "@/components/quotes/PlanDetailDrawer";
 import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/hooks/useCart";
-import type { InsurancePlan } from "@/types";
+import { useSelectedFilters } from "@/hooks/useSelectedFilters";
+import type { InsurancePlan, QuoteFilters } from "@/types";
 
 interface PlanCardProps {
   plan: InsurancePlan;
   index: number;
+  filters?: QuoteFilters;   // results-page selection → carried into checkout
 }
 
 function fmt(n: number) {
@@ -59,12 +61,13 @@ function CoverageTypeBadge({ type }: { type: InsurancePlan["coverageType"] }) {
   );
 }
 
-export default function PlanCard({ plan, index }: PlanCardProps) {
+export default function PlanCard({ plan, index, filters }: PlanCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [adding, setAdding] = useState(false);
   const router = useRouter();
   const { user } = useAuth();
   const { add, has } = useCart();
+  const { set: setSelectedFilters } = useSelectedFilters();
   const inCart = has(plan.id);
 
   // The quote inputs (already in the URL) + this plan's identifiers form the
@@ -80,6 +83,9 @@ export default function PlanCard({ plan, index }: PlanCardProps) {
   }
 
   function buyNow() {
+    // Carry the selected addons/deductible into the proposal (in-memory, keyed
+    // by enquiryId) so create-quote is priced the same — without URL bloat.
+    if (filters) setSelectedFilters(plan.id, filters);
     router.push(`/proposal?${proposalParams().toString()}`);
   }
 

@@ -125,11 +125,12 @@ export interface QuickQuotePayload {
   isClaimInLastYear?: boolean;
   previousNoClaimBonus?: string;
   previousPolicyType?: string;
-  // Re-pricing selections (from the results-page filters). Nested exactly as
-  // the backend / Go Digit adapter expects.
-  addons?: Record<string, { selection: boolean }>;
-  accessories?: Record<string, { selection: boolean }>;
-  voluntaryDeductible?: string;
+  // Re-pricing selections (from the results-page filters), provider-neutral:
+  // labels + deductible value. The backend translates these per offering into
+  // each insurer's own addon keys / deductible enum.
+  selectedAddons?: string[];
+  selectedAccessories?: string[];
+  deductible?: string | null;
 }
 
 export interface QuoteTab {
@@ -184,6 +185,24 @@ export interface PlanAddOn {
   included: boolean;   // true = bundled, false = optional
 }
 
+/**
+ * The filters an insurer offering supports, as labels only (the provider's own
+ * keys/enums stay server-side). Echoed on each quote so the sidebar can be
+ * built from whichever insurers actually quoted.
+ */
+export interface SupportedFilters {
+  addons: string[];
+  accessories: string[];
+  deductibles: { label: string; value: string }[];
+}
+
+/** Merged (union) filter menu across all quoted insurers — drives the sidebar. */
+export interface FilterCatalog {
+  addons: string[];
+  accessories: string[];
+  deductibles: { label: string; value: string }[];
+}
+
 export interface InsurancePlan {
   id: string;
   providerProductId?: string | null;  // chosen insurer offering → carried to create-quote
@@ -198,6 +217,7 @@ export interface InsurancePlan {
   isRecommended?: boolean;
   coverageType: "comprehensive" | "third-party" | "own-damage";
   policyTenure: number;          // years, usually 1
+  supportedFilters?: SupportedFilters | null;  // this insurer's filter menu
   // Expanded detail fields
   coverageDetails?: {
     ownDamage?: string;
@@ -223,4 +243,5 @@ export interface QuoteContext {
   selectedIdv: number | null;
   quoteType: QuoteTabId;
   plans: InsurancePlan[];        // results from the API (or mocks)
+  filterCatalog: FilterCatalog;  // union of supportedFilters across all plans
 }

@@ -111,20 +111,27 @@ export async function initiatePayment(payload: Record<string, unknown>): Promise
 }
 
 /**
- * Download the policy PDF. The backend STREAMS the raw bytes (no link),
- * so we pull it as a blob and trigger a browser download.
+ * Download the policy PDF. Digit returns a document URL (schedulePathHC), so the
+ * backend hands back `{ data: { url } }` which we open in a new tab. For a
+ * provider that streams raw bytes instead, we fall back to a blob download.
  */
 export async function downloadPolicyPdf(policyId: string, providerProductId: string): Promise<void> {
   try {
     const res = await api.post("/user/policy/pdf", { policyId, providerProductId }, { responseType: "blob" });
     const blob = res.data as Blob;
 
-    // A JSON error body can arrive with a blob responseType — surface it.
+    // A JSON body means either a document URL to open, or an error to surface.
     if (blob.type && blob.type.includes("application/json")) {
-      const text = await blob.text();
-      throw new Error(JSON.parse(text)?.message ?? "Policy document isn't ready yet.");
+      const parsed = JSON.parse(await blob.text());
+      const url = parsed?.data?.url ?? parsed?.url;
+      if (url) {
+        window.open(url, "_blank", "noopener");
+        return;
+      }
+      throw new Error(parsed?.message ?? "Policy document isn't ready yet.");
     }
 
+    // Raw PDF bytes → trigger a browser download.
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;

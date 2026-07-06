@@ -1,6 +1,7 @@
 import { api, extractApiError } from "@/services/api";
 import type {
   InsurancePlan, QuickQuotePayload, QuoteContext, QuoteFilters, QuoteTabId, TwoWheelerQuoteInput,
+  SupportedFilters, FilterCatalog,
 } from "@/types";
 
 /**
@@ -68,11 +69,6 @@ export const MOTOR_DEDUCTIBLES: { value: string; label: string; digit: string }[
   { value: "15000", label: "₹15000 Voluntary Deductible", digit: "FIFTEEN_THOUSAND" },
 ];
 
-// Filter deductible value → the Digit `voluntaryDeductible` enum.
-function toVoluntaryDeductible(value: string): string | undefined {
-  return MOTOR_DEDUCTIBLES.find((d) => d.value === value)?.digit;
-}
-
 /**
  * Previous insurers for renewals — the motor previous-insurer master (code →
  * name) sourced from Digit's official list.
@@ -119,6 +115,7 @@ interface ProviderQuote {
   provider?: string;          // e.g. "DIGIT"
   providerProductId?: string | null;  // the insurer offering that produced this quote
   premium?: number;           // gross premium as a number, e.g. 4030.88
+  supportedFilters?: SupportedFilters | null;  // this insurer's filter menu
   data?: {
     enquiryId?: string;
     grossPremium?: string;
@@ -160,24 +157,13 @@ export function toQuickQuotePayload(
     if (input.previousNoClaimBonus) payload.previousNoClaimBonus = input.previousNoClaimBonus;
   }
 
-  // Re-pricing selections from the results-page filters → nested shape.
+  // Re-pricing selections from the results-page filters. Sent provider-neutral
+  // (labels + deductible value); the backend translates them per offering into
+  // each insurer's own keys/enum.
   if (filters) {
-    const addons: Record<string, { selection: boolean }> = {};
-    for (const a of MOTOR_ADDONS) {
-      if (filters.addons.includes(a.label)) addons[a.key] = { selection: true };
-    }
-    if (Object.keys(addons).length) payload.addons = addons;
-
-    const accessories: Record<string, { selection: boolean }> = {};
-    for (const a of MOTOR_ACCESSORIES) {
-      if (filters.accessories.includes(a.label)) accessories[a.key] = { selection: true };
-    }
-    if (Object.keys(accessories).length) payload.accessories = accessories;
-
-    if (filters.deductible) {
-      const vd = toVoluntaryDeductible(filters.deductible);
-      if (vd) payload.voluntaryDeductible = vd;
-    }
+    if (filters.addons.length) payload.selectedAddons = filters.addons;
+    if (filters.accessories.length) payload.selectedAccessories = filters.accessories;
+    if (filters.deductible) payload.deductible = filters.deductible;
   }
 
   return payload;
@@ -278,6 +264,7 @@ function toPlan(q: ProviderQuote, i: number): InsurancePlan {
     isRecommended: i === 0,
     coverageType: "comprehensive",
     policyTenure: 1,
+    supportedFilters: q.supportedFilters ?? null,
     coverageDetails: {
       ownDamage: od
         ? `Own-damage cover against accidents, fire & theft${od.withZeroDepNetPremium != null ? " · zero-depreciation available" : ""}.`
@@ -323,6 +310,33 @@ export async function fetchQuoteResults(
     selectedIdv: plans[0]?.idvAmount || null,
     quoteType: input.category.replace(/_/g, "-") as QuoteTabId,
     plans,
+    filterCatalog: mergeFilterCatalog(plans),
+  };
+}
+
+/**
+ * Union the supportedFilters across every quoted insurer into one sidebar menu:
+ * an addon/accessory label appears if ANY insurer offers it; deductibles dedupe
+ * by value. So a Digit-only addon still shows — it just won't affect insurers
+ * that don't support it.
+ */
+function mergeFilterCatalog(plans: InsurancePlan[]): FilterCatalog {
+  const addons = new Set<string>();
+  const accessories = new Set<string>();
+  const deductibles = new Map<string, { label: string; value: string }>();
+
+  for (const p of plans) {
+    const sf = p.supportedFilters;
+    if (!sf) continue;
+    sf.addons?.forEach((a) => addons.add(a));
+    sf.accessories?.forEach((a) => accessories.add(a));
+    sf.deductibles?.forEach((d) => { if (!deductibles.has(d.value)) deductibles.set(d.value, d); });
+  }
+
+  return {
+    addons: [...addons],
+    accessories: [...accessories],
+    deductibles: [...deductibles.values()],
   };
 }
 
@@ -364,6 +378,7 @@ export function buildCreateQuotePayload(
   enquiryId: string,
   form: ProposalForm,
   providerProductId?: string | null,
+  filters?: QuoteFilters,
 ): Record<string, unknown> {
   const start = new Date();
   start.setDate(start.getDate() + 1);
@@ -376,9 +391,13 @@ export function buildCreateQuotePayload(
     category: input.category,
     // The backend resolves the insurer + its codes from this offering.
     ...(providerProductId ? { providerProductId } : {}),
+    // Provider-neutral filter selection → backend translates + prices the
+    // proposal with the addons/deductible the user chose on the results page.
+    ...(filters?.addons.length ? { selectedAddons: filters.addons } : {}),
+    ...(filters?.accessories.length ? { selectedAccessories: filters.accessories } : {}),
+    ...(filters?.deductible ? { deductible: filters.deductible } : {}),
     startDate: isoDate(start),
     endDate: isoDate(end),
-    coverages: { personalAccident: { selection: true, insuredAmount: 1500000, coverTerm: 1 } },
     vehicle: {
       isVehicleNew: input.isVehicleNew,
       vehicleMaincode: input.vehicleMainCode,

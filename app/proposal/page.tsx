@@ -9,7 +9,8 @@ import {
   ArrowLeft, ShieldCheck, CheckCircle2, Loader2, Lock, User, FileCheck2,
   FileText, BadgeCheck, ExternalLink, Sparkles, RefreshCw,
   AlertCircle, Phone, Clock, Car, CalendarDays, Check, Pencil, X,
-  Heart, Cake, MapPin, History, Building2, BadgeInfo, Users,
+  Heart, Cake, MapPin, Users, History, Building2, BadgeInfo,
+  Wrench, LifeBuoy, Disc3, Package, KeyRound, ReceiptText,
 } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
@@ -17,6 +18,7 @@ import QuoteAuthGate from "@/components/quotes/QuoteAuthGate";
 import CheckoutStepper from "@/components/quotes/CheckoutStepper";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useSelectedFilters } from "@/hooks/useSelectedFilters";
 import {
   decodeQuoteInput, buildCreateQuotePayload, createQuoteRequest,
   MOTOR_PREVIOUS_INSURERS, MOTOR_NCB, type ProposalForm,
@@ -110,6 +112,7 @@ type QuoteSummary = {
   discount: number;
   idv: number;
   engineNumber: string;
+  vin: string;
   mfgDate: string;
   fuelType: string;
   covers: CoverItem[];          // base coverages that are included (Selected Plan)
@@ -125,7 +128,7 @@ type QuoteSummary = {
   prevInsurer: PrevInsurer | null;
 };
 
-type CoverItem = { name: string; selected: boolean; premium: number };
+type CoverItem = { name: string; selected: boolean; premium: number; sumInsured: number };
 type CoverGroup = { title: string; items: CoverItem[] };
 type PrevInsurer = {
   name: string; policyNumber: string; expiry: string;
@@ -136,6 +139,19 @@ const insurerName = (code?: string) =>
   MOTOR_PREVIOUS_INSURERS.find((i) => i.code === code)?.name ?? code ?? "";
 const ncbLabel = (v?: string) => MOTOR_NCB.find((n) => n.value === v)?.label ?? v ?? "";
 const stateName = (code?: string) => STATES.find((s) => s.code === code)?.name ?? code ?? "";
+
+// Distinct icon per add-on (falls back to Sparkles), matched loosely by label.
+function addonIcon(label: string): React.ElementType {
+  const l = label.toLowerCase();
+  if (l.includes("depreciation")) return ShieldCheck;
+  if (l.includes("engine")) return Wrench;
+  if (l.includes("roadside") || l.includes("road side")) return LifeBuoy;
+  if (l.includes("tyre") || l.includes("rim")) return Disc3;
+  if (l.includes("consumable") || l.includes("belonging")) return Package;
+  if (l.includes("key") || l.includes("lock")) return KeyRound;
+  if (l.includes("invoice")) return ReceiptText;
+  return Sparkles;
+}
 
 // "ZERO_DEPRECIATION" / "roadSideAssistance" → "Zero Depreciation" / "Road Side Assistance"
 const humanizeAddon = (k: string) =>
@@ -152,8 +168,13 @@ function pickCoverItems(obj: unknown): CoverItem[] {
   return Object.entries(obj as Record<string, unknown>)
     .filter(([, v]) => v && typeof v === "object" && "selection" in (v as object))
     .map(([k, v]) => {
-      const o = v as { selection?: boolean; netPremium?: string };
-      return { name: humanizeAddon(k), selected: o.selection === true, premium: inr(o.netPremium) };
+      const o = v as { selection?: boolean; netPremium?: string; insuredAmount?: number };
+      return {
+        name: humanizeAddon(k),
+        selected: o.selection === true,
+        premium: inr(o.netPremium),
+        sumInsured: Number(o.insuredAmount) || 0,
+      };
     });
 }
 
@@ -182,6 +203,7 @@ export default function ProposalPage() {
 
 function CheckoutContent({ user }: { user: AuthUser }) {
   const router = useRouter();
+  const { get: getSelectedFilters } = useSelectedFilters();
 
   // Split the user's full name into first + last for the proposer fields.
   const [firstName, ...restName] = (user.name ?? "").trim().split(/\s+/).filter(Boolean);
@@ -262,7 +284,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
   const onProposal = proposal.handleSubmit(async (form) => {
     setError(null); setBusy(true);
     try {
-      const res = await createQuoteRequest(buildCreateQuotePayload(input, enquiryId, form, providerProductId)) as {
+      const res = await createQuoteRequest(buildCreateQuotePayload(input, enquiryId, form, providerProductId, getSelectedFilters(enquiryId))) as {
         data?: {
           policyNumber?: string;
           applicationId?: string;
@@ -284,7 +306,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
             };
           };
           vehicle?: {
-            make?: string; model?: string; licensePlateNumber?: string;
+            make?: string; model?: string; licensePlateNumber?: string; vehicleIdentificationNumber?: string;
             manufactureDate?: string; engineNumber?: string; fuelType?: string; vehicleIDV?: { idv?: number };
           };
           previousInsurer?: {
@@ -316,10 +338,27 @@ function CheckoutContent({ user }: { user: AuthUser }) {
       const addonItems = pickCoverItems(cov?.addons);
       const legalItems = pickCoverItems(cov?.legalLiability);
       const unnamedItems = pickCoverItems(cov?.unnamedPA);
-      // Selected Plan shows base covers that are active (chosen or priced —
-      // Third-party is mandatory so it carries a premium even when unflagged).
-      const covers = baseCovers.filter((c) => c.selected || c.premium > 0);
-      const selectedAddons = addonItems.filter((a) => a.selected);
+      // Selected Plan shows ALL base coverages the response returned (OD, TP,
+      // PA, fire, theft…), each with its selected/priced state — nothing hidden.
+      const covers = baseCovers;
+      // Add-ons the customer chose should ALWAYS show, even if the create-quote
+      // response comes back sparse (no add-on premiums echoed). Merge the
+      // response's selected add-ons with the selection carried from the results
+      // page (labels), pulling premiums from the response when available.
+      const respSelected = addonItems.filter((a) => a.selected);
+      const respNames = new Set(respSelected.map((a) => a.name));
+      const chosenLabels = getSelectedFilters(enquiryId)?.addons ?? [];
+      const selectedAddons: CoverItem[] = [
+        ...respSelected,
+        ...chosenLabels
+          .filter((label) => !respNames.has(label))
+          .map((label) => ({
+            name: label,
+            selected: true,
+            premium: addonItems.find((a) => a.name === label)?.premium ?? 0,
+            sumInsured: 0,
+          })),
+      ];
       // Everything, grouped, for the "View Details" modal (empty groups dropped).
       const groups: CoverGroup[] = [
         { title: "Coverages", items: baseCovers },
@@ -344,6 +383,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
         discount,
         idv: d?.vehicle?.vehicleIDV?.idv ?? 0,
         engineNumber: d?.vehicle?.engineNumber ?? "",
+        vin: d?.vehicle?.vehicleIdentificationNumber ?? form.vehicleIdentificationNumber ?? "",
         mfgDate: d?.vehicle?.manufactureDate ?? "",
         fuelType: d?.vehicle?.fuelType ?? "",
         covers,
@@ -379,10 +419,15 @@ function CheckoutContent({ user }: { user: AuthUser }) {
       // verified (DONE/verified/complete) skip the KYC step and go straight to
       // Payment — and remember it so Back from Payment returns to Proposal, not
       // KYC. Otherwise (IN_PROGRESS / NOT_DONE / FAILED) show the KYC step.
-      const kycStatus = res?.data?.kycStatus?.kycVerificationStatus;
-      const alreadyVerified = isKycDone(kycStatus);
-      setKycDone(alreadyVerified);
-      setStep(alreadyVerified ? 2 : 1);
+      // const kycStatus = res?.data?.kycStatus?.kycVerificationStatus;
+      // const alreadyVerified = isKycDone(kycStatus);
+      // setKycDone(alreadyVerified);
+      // setStep(alreadyVerified ? 2 : 1);
+
+      // TEMP BYPASS: skip the KYC step for now — go straight to Payment.
+      // Restore the four lines above to re-enable KYC.
+      setKycDone(true);
+      setStep(2);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally { setBusy(false); }
@@ -754,6 +799,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
                         {summary.registration && <SummaryTile icon={Car} label="Registration No." value={summary.registration} mono />}
                         {summary.mfgDate && <SummaryTile icon={CalendarDays} label="Manufacturing Year" value={summary.mfgDate.slice(0, 4)} />}
                         {summary.engineNumber && <SummaryTile icon={FileText} label="Engine No." value={summary.engineNumber} mono />}
+                        {summary.vin && <SummaryTile icon={FileText} label="VIN / Chassis No." value={summary.vin} mono />}
                         {summary.idv > 0 && <SummaryTile icon={ShieldCheck} label="IDV (Insured Declared Value)" value={`₹${fmt(summary.idv)}`} />}
                         {summary.policyNumber && <SummaryTile icon={FileText} label="Policy Number" value={summary.policyNumber} mono />}
                         {(summary.startDate || summary.endDate) && (
@@ -784,14 +830,20 @@ function CheckoutContent({ user }: { user: AuthUser }) {
                           <span className="rounded-full bg-brand/10 px-2.5 py-0.5 text-[0.66rem] font-bold text-brand">Comprehensive</span>
                         </div>
                         <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                          {summary.covers.map((c) => (
-                            <span key={c.name} className="flex items-center justify-between gap-1.5 text-xs font-semibold text-ink">
-                              <span className="flex items-center gap-1.5">
-                                <CheckCircle2 className="h-4 w-4 shrink-0 text-teal" strokeWidth={2} /> {c.name}
+                          {summary.covers.map((c) => {
+                            const on = c.selected || c.premium > 0;
+                            return (
+                              <span key={c.name} className="flex items-center justify-between gap-1.5 text-xs font-semibold text-ink">
+                                <span className="flex items-center gap-1.5">
+                                  {on
+                                    ? <CheckCircle2 className="h-4 w-4 shrink-0 text-teal" strokeWidth={2} />
+                                    : <span className="h-4 w-4 shrink-0 rounded-full border border-line" />}
+                                  <span className={on ? "" : "text-ink-soft"}>{c.name}</span>
+                                </span>
+                                <span className="text-ink-soft">{c.premium > 0 ? `₹${fmt(c.premium)}` : on ? "Included" : "—"}</span>
                               </span>
-                              {c.premium > 0 && <span className="text-ink-soft">₹{fmt(c.premium)}</span>}
-                            </span>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     </ReviewCard>
@@ -801,18 +853,21 @@ function CheckoutContent({ user }: { user: AuthUser }) {
                   {summary && summary.selectedAddons.length > 0 && (
                     <ReviewCard icon={Sparkles} title="Add-ons">
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                        {summary.selectedAddons.map((a) => (
-                          <div key={a.name} className="relative rounded-2xl border border-line bg-paper/60 p-4 text-center">
-                            <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-teal text-white">
-                              <Check className="h-3 w-3" strokeWidth={3} />
-                            </span>
-                            <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10">
-                              <Sparkles className="h-5 w-5 text-brand" strokeWidth={1.8} />
-                            </span>
-                            <p className="mt-2 text-xs font-bold text-ink">{a.name}</p>
-                            {a.premium > 0 && <p className="mt-0.5 text-sm font-extrabold text-ink">₹{fmt(a.premium)}</p>}
-                          </div>
-                        ))}
+                        {summary.selectedAddons.map((a) => {
+                          const AddonIcon = addonIcon(a.name);
+                          return (
+                            <div key={a.name} className="relative rounded-2xl border border-line bg-paper/60 p-4 text-center">
+                              <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-teal text-white">
+                                <Check className="h-3 w-3" strokeWidth={3} />
+                              </span>
+                              <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10">
+                                <AddonIcon className="h-5 w-5 text-brand" strokeWidth={1.8} />
+                              </span>
+                              <p className="mt-2 text-xs font-bold text-ink">{a.name}</p>
+                              <p className="mt-0.5 text-sm font-extrabold text-ink">{a.premium > 0 ? `₹${fmt(a.premium)}` : "Included"}</p>
+                            </div>
+                          );
+                        })}
                       </div>
                     </ReviewCard>
                   )}
@@ -831,7 +886,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
                     </ReviewCard>
                   )}
 
-                  {/* Previous Insurer — only when the customer had a known prior policy */}
+                  {/* Previous Insurer — shown when the customer had a known prior policy */}
                   {summary?.prevInsurer && (
                     <ReviewCard icon={History} title="Previous Insurer">
                       <div className="grid gap-3 sm:grid-cols-2">
@@ -839,7 +894,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
                         {summary.prevInsurer.policyNumber && <SummaryTile icon={FileText} label="Policy Number" value={summary.prevInsurer.policyNumber} mono />}
                         {summary.prevInsurer.expiry && <SummaryTile icon={CalendarDays} label="Policy Expiry" value={fmtDate(summary.prevInsurer.expiry)} />}
                         {summary.prevInsurer.policyType && <SummaryTile icon={ShieldCheck} label="Policy Type" value={summary.prevInsurer.policyType} />}
-                        {summary.prevInsurer.ncb && <SummaryTile icon={BadgeInfo} label="No-Claim Bonus" value={summary.prevInsurer.ncb} />}
+                        {summary.prevInsurer.ncb && <SummaryTile icon={BadgeInfo} label="Previous NCB" value={summary.prevInsurer.ncb} />}
                         <SummaryTile icon={AlertCircle} label="Claim Last Year" value={summary.prevInsurer.claimLastYear ? "Yes" : "No"} />
                       </div>
                     </ReviewCard>
@@ -1084,8 +1139,12 @@ function CoverageModal({ open, groups, onClose }: { open: boolean; groups: Cover
                             : <span className="h-4 w-4 shrink-0 rounded-full border border-line" />}
                           <span className={it.selected ? "font-semibold" : "text-ink-soft"}>{it.name}</span>
                         </span>
-                        <span className="shrink-0 text-xs font-bold text-ink">
-                          {it.premium > 0 ? `₹${fmt(it.premium)}` : it.selected ? "Included" : "—"}
+                        <span className="shrink-0 text-right text-xs font-bold text-ink">
+                          {it.premium > 0
+                            ? `₹${fmt(it.premium)}`
+                            : it.sumInsured > 0
+                            ? <><span className="text-ink-soft">SI</span> ₹{fmt(it.sumInsured)}</>
+                            : it.selected ? "Included" : "—"}
                         </span>
                       </div>
                     ))}

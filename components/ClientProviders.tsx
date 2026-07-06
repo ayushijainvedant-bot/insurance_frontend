@@ -6,6 +6,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { CartProvider } from "@/hooks/useCart";
 import { ProductsProvider } from "@/hooks/useProducts";
 import { QuoteModalProvider } from "@/hooks/useQuoteModal";
+import { SelectedFiltersProvider } from "@/hooks/useSelectedFilters";
 
 /**
  * Customer-facing context providers. The CMS/admin area under /cms has its own
@@ -22,7 +23,9 @@ export default function ClientProviders({ children }: { children: React.ReactNod
     <AuthProvider>
       <CartProvider>
         <ProductsProvider>
-          <QuoteModalProvider>{children}</QuoteModalProvider>
+          <SelectedFiltersProvider>
+            <QuoteModalProvider>{children}</QuoteModalProvider>
+          </SelectedFiltersProvider>
         </ProductsProvider>
       </CartProvider>
     </AuthProvider>

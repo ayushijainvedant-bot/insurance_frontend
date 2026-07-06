@@ -107,6 +107,7 @@ function QuoteResultsContent() {
               <FilterSidebar
                 filters={filters}
                 sortKey={sortKey}
+                catalog={context?.filterCatalog}
                 onFiltersChange={setFilters}
                 onSortChange={setSortKey}
                 onClearAll={clearFilters}
@@ -139,7 +140,7 @@ function QuoteResultsContent() {
                   variants={{ visible: { transition: { staggerChildren: 0.06 } } }}
                 >
                   {filteredPlans.map((plan, i) => (
-                    <PlanCard key={plan.id} plan={plan} index={i} />
+                    <PlanCard key={plan.id} plan={plan} index={i} filters={filters} />
                   ))}
                 </motion.div>
               </div>

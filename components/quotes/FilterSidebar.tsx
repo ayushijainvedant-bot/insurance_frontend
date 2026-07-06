@@ -2,14 +2,12 @@
 
 import { useState } from "react";
 import { SlidersHorizontal, ChevronDown, ChevronUp } from "lucide-react";
-import { MOTOR_ADDONS, MOTOR_ACCESSORIES, MOTOR_DEDUCTIBLES } from "@/services/quote";
-import type { QuoteFilters, SortKey } from "@/types";
-
-const ADDONS = MOTOR_ADDONS.map((a) => a.label);
+import type { FilterCatalog, QuoteFilters, SortKey } from "@/types";
 
 interface FilterSidebarProps {
   filters: QuoteFilters;
   sortKey: SortKey;
+  catalog?: FilterCatalog;   // supported filters (union across quoted insurers)
   onFiltersChange: (f: QuoteFilters) => void;
   onSortChange: (s: SortKey) => void;
   onClearAll: () => void;
@@ -23,8 +21,6 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "idv_desc", label: "IDV high to low" },
   { key: "idv_asc", label: "IDV low to high" },
 ];
-
-const DEDUCTIBLES = MOTOR_DEDUCTIBLES;
 
 function Section({
   title,
@@ -111,6 +107,7 @@ function RadioItem({
 export default function FilterSidebar({
   filters,
   sortKey,
+  catalog,
   onFiltersChange,
   onSortChange,
   onClearAll,
@@ -121,6 +118,10 @@ export default function FilterSidebar({
     filters.addons.length > 0 ||
     filters.deductible !== null ||
     filters.accessories.length > 0;
+
+  const addons = catalog?.addons ?? [];
+  const deductibles = catalog?.deductibles ?? [];
+  const accessories = catalog?.accessories ?? [];
 
   function toggleArray(list: string[], item: string, checked: boolean) {
     return checked ? [...list, item] : list.filter((i) => i !== item);
@@ -164,54 +165,60 @@ export default function FilterSidebar({
       </Section>
 
       {/* ── Addons ── */}
-      <Section title="Addons">
-        {ADDONS.map((name) => (
-          <CheckItem
-            key={name}
-            id={`addon-${name.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}`}
-            label={name}
-            checked={filters.addons.includes(name)}
-            onChange={(v) =>
-              onFiltersChange({
-                ...filters,
-                addons: toggleArray(filters.addons, name, v),
-              })
-            }
-          />
-        ))}
-      </Section>
+      {addons.length > 0 && (
+        <Section title="Addons">
+          {addons.map((name) => (
+            <CheckItem
+              key={name}
+              id={`addon-${name.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}`}
+              label={name}
+              checked={filters.addons.includes(name)}
+              onChange={(v) =>
+                onFiltersChange({
+                  ...filters,
+                  addons: toggleArray(filters.addons, name, v),
+                })
+              }
+            />
+          ))}
+        </Section>
+      )}
 
       {/* ── Deductibles ── */}
-      <Section title="Deductibles" defaultOpen={false}>
-        {DEDUCTIBLES.map((opt) => (
-          <RadioItem
-            key={opt.value}
-            id={`deductible-${opt.value}`}
-            name="deductible"
-            label={opt.label}
-            checked={filters.deductible === opt.value}
-            onChange={() => onFiltersChange({ ...filters, deductible: opt.value })}
-          />
-        ))}
-      </Section>
+      {deductibles.length > 0 && (
+        <Section title="Deductibles" defaultOpen={false}>
+          {deductibles.map((opt) => (
+            <RadioItem
+              key={opt.value}
+              id={`deductible-${opt.value}`}
+              name="deductible"
+              label={opt.label}
+              checked={filters.deductible === opt.value}
+              onChange={() => onFiltersChange({ ...filters, deductible: opt.value })}
+            />
+          ))}
+        </Section>
+      )}
 
       {/* ── Accessories cover ── */}
-      <Section title="Accessories cover" defaultOpen={false}>
-        {MOTOR_ACCESSORIES.map(({ label }) => (
-          <CheckItem
-            key={label}
-            id={`accessory-${label.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}`}
-            label={label}
-            checked={filters.accessories.includes(label)}
-            onChange={(v) =>
-              onFiltersChange({
-                ...filters,
-                accessories: toggleArray(filters.accessories, label, v),
-              })
-            }
-          />
-        ))}
-      </Section>
+      {accessories.length > 0 && (
+        <Section title="Accessories cover" defaultOpen={false}>
+          {accessories.map((label) => (
+            <CheckItem
+              key={label}
+              id={`accessory-${label.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}`}
+              label={label}
+              checked={filters.accessories.includes(label)}
+              onChange={(v) =>
+                onFiltersChange({
+                  ...filters,
+                  accessories: toggleArray(filters.accessories, label, v),
+                })
+              }
+            />
+          ))}
+        </Section>
+      )}
 
     </aside>
   );

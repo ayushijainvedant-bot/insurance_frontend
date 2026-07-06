@@ -292,15 +292,11 @@ function PolicyCard({ policy, index }: { policy: DashboardPolicy; index: number 
           {open ? "Hide details" : "View details"}
           <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
-        {active ? (
-          <button onClick={onDownload} disabled={busy}
+        {active && (
+          <button onClick={onDownload} disabled={busy} title="Download policy PDF"
             className="inline-flex items-center gap-1.5 rounded-lg bg-linear-to-r from-brand to-violet px-3.5 py-2 text-xs font-bold text-white shadow-sm shadow-brand/25 hover:opacity-90 disabled:opacity-60">
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download PDF
           </button>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber/10 px-3 py-1.5 text-xs font-bold text-amber">
-            <Clock className="h-3.5 w-3.5" /> Completion pending
-          </span>
         )}
       </div>
 
