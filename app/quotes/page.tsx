@@ -140,7 +140,7 @@ function QuoteResultsContent() {
                   variants={{ visible: { transition: { staggerChildren: 0.06 } } }}
                 >
                   {filteredPlans.map((plan, i) => (
-                    <PlanCard key={plan.id} plan={plan} index={i} filters={filters} />
+                    <PlanCard key={plan.id} plan={plan} index={i} filters={filters} vehicleLabel={context?.registrationNumber} />
                   ))}
                 </motion.div>
               </div>

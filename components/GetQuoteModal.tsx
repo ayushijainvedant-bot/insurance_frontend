@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForm, useWatch } from "react-hook-form";
-import { CheckCircle2, Loader2, Sparkles, ArrowRight, Hash, Car, MapPin, Calendar } from "lucide-react";
+import { CheckCircle2, Loader2, Sparkles, ArrowRight, Hash, Car, MapPin, Calendar, ShieldCheck, Lock } from "lucide-react";
 
 import {
   Dialog, DialogContent,
@@ -134,7 +134,7 @@ export default function GetQuoteModal({
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
       <DialogContent
-        className="max-h-[90vh] overflow-y-auto"
+        className="max-h-[90vh] overflow-y-auto sm:max-w-4xl"
         // Belt-and-suspenders: don't let interactions with the nested
         // "Previous policy" modal bubble up and close this one.
         onInteractOutside={(e) => { if (prevModalOpen) e.preventDefault(); }}
@@ -215,7 +215,13 @@ export default function GetQuoteModal({
 
           {/* ── STEP 2: details form ── */}
           {step === "details" && chosenCat && (
-            <motion.div key="details" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+            <motion.div key="details" className="grid md:grid-cols-[288px_1fr]"
+              initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+              {/* Decorative illustrated panel (desktop) */}
+              <QuoteSideArt Icon={ChosenIcon} isMotor={isMotor} name={chosenCat.name} />
+
+              {/* Form column */}
+              <div>
               <DialogHeader>
                 <button
                   type="button"
@@ -225,7 +231,7 @@ export default function GetQuoteModal({
                   ← Back
                 </button>
                 {ChosenIcon && (
-                  <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-linear-to-br from-brand to-violet shadow-md shadow-brand/25">
+                  <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-linear-to-br from-brand to-violet shadow-md shadow-brand/25 md:hidden">
                     <ChosenIcon className="h-6 w-6 text-white" strokeWidth={1.8} />
                   </span>
                 )}
@@ -392,6 +398,7 @@ export default function GetQuoteModal({
                   No spam. Your data is encrypted and never sold.
                 </p>
               </form>
+              </div>
             </motion.div>
           )}
 
@@ -428,6 +435,88 @@ export default function GetQuoteModal({
         />
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Decorative left panel for the details step — illustration + trust points.
+ *  Hidden on mobile so the form takes the full width. */
+function QuoteSideArt({ Icon, isMotor, name }: { Icon?: React.ElementType; isMotor: boolean; name: string }) {
+  const BENEFITS = [
+    "Compare 51+ insurers",
+    "Lowest price, guaranteed",
+    "No spam calls — ever",
+    "Instant policy issuance",
+  ];
+  return (
+    <div className="relative hidden flex-col justify-between overflow-hidden bg-linear-to-br from-brand via-brand to-violet p-7 text-white md:flex">
+      {/* floating accents */}
+      <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-white/12 blur-xl" />
+      <div className="pointer-events-none absolute -bottom-14 -left-10 h-40 w-40 rounded-full bg-white/8 blur-xl" />
+
+      <div className="relative">
+        <p className="text-[0.68rem] font-bold uppercase tracking-wider text-white/70">{name}</p>
+        <h3 className="mt-1 font-display text-xl font-extrabold leading-tight">
+          Best quote in<br />3 minutes
+        </h3>
+      </div>
+
+      {/* Illustration: a flat car + shield for motor, else the plan icon in a glass badge */}
+      {isMotor ? (
+        <CarShieldArt className="relative mx-auto my-5 w-full max-w-[210px]" />
+      ) : (
+        <span className="relative mx-auto my-8 flex h-28 w-28 items-center justify-center rounded-3xl bg-white/15 backdrop-blur-sm ring-1 ring-white/20">
+          {Icon && <Icon className="h-14 w-14 text-white" strokeWidth={1.5} />}
+        </span>
+      )}
+
+      <ul className="relative space-y-2.5">
+        {BENEFITS.map((b) => (
+          <li key={b} className="flex items-center gap-2 text-sm font-medium text-white/90">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-white" strokeWidth={2.2} /> {b}
+          </li>
+        ))}
+      </ul>
+
+      <div className="relative mt-5 flex items-center gap-2 rounded-xl bg-white/12 px-3 py-2.5 text-[0.72rem] font-semibold ring-1 ring-white/15">
+        <ShieldCheck className="h-4 w-4 shrink-0" /> IRDAI regulated
+        <span className="mx-1 h-3 w-px bg-white/30" />
+        <Lock className="h-3.5 w-3.5 shrink-0" /> 256-bit secure
+      </div>
+    </div>
+  );
+}
+
+/** Flat side-view car with a shield badge — inline SVG (CSP-safe, no assets). */
+function CarShieldArt({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 260 170" fill="none" className={className} aria-hidden>
+      {/* ground shadow */}
+      <ellipse cx="132" cy="146" rx="104" ry="9" fill="#000" opacity="0.15" />
+      {/* body */}
+      <path
+        d="M22 110 C22 94 34 90 46 88 L74 64 C80 58 88 55 98 55 L166 55 C178 55 186 60 192 70 L206 90 C222 92 238 96 238 110 L238 118 C238 124 234 127 228 127 L32 127 C26 127 22 124 22 118 Z"
+        fill="white"
+      />
+      {/* windows */}
+      <path d="M96 66 L150 66 C159 66 165 70 169 78 L176 88 L100 88 Z" fill="#1e2b52" opacity="0.9" />
+      <path d="M100 66 L120 66 L120 88 L104 88 Z" fill="#2f47a0" opacity="0.55" />
+      {/* door seam + handle */}
+      <path d="M132 90 L132 122" stroke="#c9d3e8" strokeWidth="2" />
+      <rect x="140" y="98" width="12" height="3" rx="1.5" fill="#c9d3e8" />
+      {/* headlight / taillight */}
+      <circle cx="231" cy="106" r="4" fill="#ffd54a" />
+      <rect x="24" y="103" width="7" height="6" rx="2" fill="#ff6b5b" />
+      {/* wheels */}
+      <circle cx="80" cy="125" r="18" fill="#0f172a" />
+      <circle cx="80" cy="125" r="7.5" fill="white" />
+      <circle cx="196" cy="125" r="18" fill="#0f172a" />
+      <circle cx="196" cy="125" r="7.5" fill="white" />
+      {/* shield badge */}
+      <g transform="translate(150 12)">
+        <path d="M24 2 l19 7 v11 c0 11-8 18-19 22 -11-4-19-11-19-22 V9 z" fill="#12B39B" stroke="white" strokeWidth="2.5" />
+        <path d="M15 22 l6 6 11-13" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+    </svg>
   );
 }
 

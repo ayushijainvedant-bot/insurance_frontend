@@ -244,7 +244,7 @@ function PolicyCard({ policy, index }: { policy: DashboardPolicy; index: number 
       setErr("Policy document isn't available yet."); return;
     }
     setBusy(true); setErr(null);
-    try { await downloadPolicyPdf(policy.applicationId, policy.providerProductId); }
+    try { await downloadPolicyPdf(policy.applicationId, policy.providerProductId, `policy-${policy.policyNumber ?? policy.id}.pdf`); }
     catch (e) { setErr(e instanceof Error ? e.message : "Couldn't download the policy."); }
     finally { setBusy(false); }
   }

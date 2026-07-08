@@ -115,7 +115,7 @@ export async function initiatePayment(payload: Record<string, unknown>): Promise
  * backend hands back `{ data: { url } }` which we open in a new tab. For a
  * provider that streams raw bytes instead, we fall back to a blob download.
  */
-export async function downloadPolicyPdf(policyId: string, providerProductId: string): Promise<void> {
+export async function downloadPolicyPdf(policyId: string, providerProductId: string, fileName?: string): Promise<void> {
   try {
     const res = await api.post("/user/policy/pdf", { policyId, providerProductId }, { responseType: "blob" });
     const blob = res.data as Blob;
@@ -135,7 +135,7 @@ export async function downloadPolicyPdf(policyId: string, providerProductId: str
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `policy-${policyId}.pdf`;
+    a.download = fileName?.trim() ? fileName : "policy.pdf";
     document.body.appendChild(a);
     a.click();
     a.remove();

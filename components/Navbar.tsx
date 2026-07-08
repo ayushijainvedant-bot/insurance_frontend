@@ -183,8 +183,9 @@ export default function Navbar() {
           {quoteButton}
         </div>
 
-        {/* Mobile: theme toggle + hamburger */}
+        {/* Mobile: cart + theme toggle + hamburger */}
         <div className="flex items-center gap-1.5 lg:hidden">
+          {cartButton}
           <ThemeToggle />
           <button
             className="flex h-9 w-9 items-center justify-center text-ink"

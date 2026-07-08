@@ -26,6 +26,7 @@ interface PlanCardProps {
   plan: InsurancePlan;
   index: number;
   filters?: QuoteFilters;   // results-page selection → carried into checkout
+  vehicleLabel?: string | null; // registration no. — stable cart-match key
 }
 
 function fmt(n: number) {
@@ -61,14 +62,21 @@ function CoverageTypeBadge({ type }: { type: InsurancePlan["coverageType"] }) {
   );
 }
 
-export default function PlanCard({ plan, index, filters }: PlanCardProps) {
+export default function PlanCard({ plan, index, filters, vehicleLabel }: PlanCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [adding, setAdding] = useState(false);
   const router = useRouter();
   const { user } = useAuth();
-  const { add, has } = useCart();
+  const { add, hasPlan } = useCart();
   const { set: setSelectedFilters } = useSelectedFilters();
-  const inCart = has(plan.id);
+  // Match by stable identity (offering + vehicle + cover), not the volatile
+  // enquiryId — it's regenerated on every quote re-fetch.
+  const inCart = hasPlan({
+    providerProductId: plan.providerProductId,
+    insurerName: plan.insurerName,
+    vehicleLabel,
+    coverageType: plan.coverageType,
+  });
 
   // The quote inputs (already in the URL) + this plan's identifiers form the
   // query string that resumes checkout on the proposal page.

@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ShoppingCart, Car, Trash2, ArrowRight, Loader2, Sparkles, ShieldCheck, Lock,
-  ChevronDown, FileText, CalendarDays, MapPin, BadgeCheck,
+  ShoppingCart, Car, Trash2, ArrowRight, ArrowLeft, Loader2, Sparkles, ShieldCheck, Lock,
+  ChevronDown, FileText, CalendarDays, MapPin, BadgeCheck, Plus,
 } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
@@ -63,30 +63,55 @@ export default function CartPage() {
     );
   }
 
+  const hasItems = items.length > 0;
+
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-linear-to-b from-brand/6 via-paper to-paper pb-20">
-        <section className="relative overflow-hidden border-b border-line bg-linear-to-br from-brand/8 via-violet/5 to-white">
-          <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-violet/10 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 -left-10 h-56 w-56 rounded-full bg-brand/10 blur-3xl" />
+      <main className="min-h-screen bg-linear-to-b from-brand/6 via-paper to-paper pb-24">
+        {/* ── Hero ── */}
+        <section className="relative overflow-hidden border-b border-line bg-linear-to-br from-brand/10 via-violet/6 to-white">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-violet/12 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-28 -left-16 h-64 w-64 rounded-full bg-brand/12 blur-3xl" />
           <div className="relative mx-auto max-w-3xl px-4 py-10 sm:px-6">
-            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-brand">
-              <Sparkles className="h-3.5 w-3.5" /> Saved for later
-            </p>
-            <h1 className="mt-1.5 font-display text-3xl font-extrabold text-ink sm:text-4xl">
-              Your cart {count > 0 && <span className="text-ink-soft">· {count}</span>}
-            </h1>
-            <p className="mt-1 text-sm text-ink-soft">Plans you saved — pick up checkout whenever you&apos;re ready.</p>
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="mb-5 inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft transition hover:text-brand"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> Back
+            </button>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <span className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-brand to-violet shadow-lg shadow-brand/30">
+                <ShoppingCart className="h-7 w-7 text-white" strokeWidth={1.9} />
+                {count > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-coral px-1 text-[0.68rem] font-extrabold text-white shadow">
+                    {count}
+                  </span>
+                )}
+              </span>
+              <div>
+                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-brand">
+                  <Sparkles className="h-3.5 w-3.5" /> Saved for later
+                </p>
+                <h1 className="mt-0.5 font-display text-3xl font-extrabold text-ink sm:text-4xl">Your Cart</h1>
+                <p className="mt-1 text-sm text-ink-soft">Plans you saved — resume checkout whenever you&apos;re ready.</p>
+              </div>
+            </div>
+            <Link href="/" className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-white/70 px-4 py-2.5 text-sm font-bold text-ink backdrop-blur transition hover:border-brand/40 hover:text-brand">
+              <Plus className="h-4 w-4" /> Add more plans
+            </Link>
+            </div>
           </div>
         </section>
 
         <div className="mx-auto mt-8 max-w-3xl px-4 sm:px-6">
           {loading && items.length === 0 ? (
-            <div className="space-y-3">
-              {[0, 1].map((i) => <div key={i} className="h-32 animate-pulse rounded-3xl border border-line bg-white" />)}
+            <div className="space-y-4">
+              {[0, 1].map((i) => <div key={i} className="h-40 animate-pulse rounded-3xl border border-line bg-white" />)}
             </div>
-          ) : items.length === 0 ? (
+          ) : !hasItems ? (
             <EmptyCart />
           ) : (
             <>
@@ -95,9 +120,14 @@ export default function CartPage() {
                   {items.map((item) => <CartRow key={item.id} item={item} onRemove={remove} />)}
                 </AnimatePresence>
               </div>
-              <p className="mt-6 flex items-center justify-center gap-1.5 text-[0.72rem] text-ink-soft">
-                <Lock className="h-3 w-3 text-teal" /> Premiums are indicative and inclusive of GST · Encrypted · IRDAI regulated
-              </p>
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+                <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-bold text-brand transition hover:text-violet">
+                  <ArrowRight className="h-4 w-4 rotate-180" /> Continue browsing plans
+                </Link>
+                <p className="flex items-center gap-1.5 text-[0.72rem] text-ink-soft">
+                  <Lock className="h-3 w-3 text-teal" /> Premiums incl. GST · Encrypted · IRDAI regulated
+                </p>
+              </div>
             </>
           )}
         </div>
@@ -128,11 +158,11 @@ function CartRow({ item, onRemove }: { item: CartItem; onRemove: (id: string) =>
       layout
       initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}
       transition={{ duration: 0.25 }}
-      className="relative overflow-hidden rounded-3xl border border-line bg-white shadow-sm transition-shadow hover:shadow-md"
+      className="group relative overflow-hidden rounded-3xl border border-line bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand/25 hover:shadow-lg hover:shadow-brand/5"
     >
       {/* accent strip */}
       <span className="absolute inset-x-0 top-0 h-1 bg-linear-to-r from-brand via-violet to-teal" />
-      <div className="pointer-events-none absolute -right-16 -top-16 h-36 w-36 rounded-full bg-brand/5 blur-3xl" />
+      <div className="pointer-events-none absolute -right-16 -top-16 h-36 w-36 rounded-full bg-brand/5 blur-3xl transition-opacity group-hover:opacity-70" />
 
       <div className="relative p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -233,7 +263,7 @@ function CartRow({ item, onRemove }: { item: CartItem; onRemove: (id: string) =>
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Remove
           </button>
           <Button onClick={buy} size="sm"
-            className="gap-1.5 bg-linear-to-r from-brand to-violet text-white shadow-md shadow-brand/25 hover:opacity-90">
+            className="gap-1.5 bg-linear-to-r from-brand to-violet text-white shadow-md shadow-brand/25 transition group-hover:shadow-lg group-hover:shadow-brand/30 hover:opacity-90">
             Buy now <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -244,18 +274,20 @@ function CartRow({ item, onRemove }: { item: CartItem; onRemove: (id: string) =>
 
 function EmptyCart() {
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-dashed border-line bg-white p-12 text-center">
-      <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/10">
-        <ShoppingCart className="h-8 w-8 text-brand" />
+    <div className="relative mx-auto max-w-2xl overflow-hidden rounded-3xl border border-dashed border-line bg-white p-12 text-center shadow-sm">
+      <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-brand/8 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-14 -left-10 h-40 w-40 rounded-full bg-violet/8 blur-3xl" />
+      <span className="relative mx-auto flex h-18 w-18 items-center justify-center rounded-2xl bg-linear-to-br from-brand/15 to-violet/15">
+        <ShoppingCart className="h-9 w-9 text-brand" />
       </span>
-      <p className="mt-5 font-display text-lg font-bold text-ink">Your cart is empty</p>
-      <p className="mx-auto mt-1 max-w-xs text-sm text-ink-soft">
-        Compare plans and tap “Add to cart” to save them here for later.
+      <p className="relative mt-5 font-display text-xl font-bold text-ink">Your cart is empty</p>
+      <p className="relative mx-auto mt-1.5 max-w-xs text-sm text-ink-soft">
+        Compare plans and tap &ldquo;Add to cart&rdquo; to save them here for later.
       </p>
-      <Link href="/" className="mt-6 inline-flex items-center gap-1.5 rounded-xl bg-linear-to-r from-brand to-violet px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-brand/25 hover:opacity-90">
+      <Link href="/" className="relative mt-6 inline-flex items-center gap-1.5 rounded-xl bg-linear-to-r from-brand to-violet px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-brand/25 hover:opacity-90">
         Get a quote <ArrowRight className="h-4 w-4" />
       </Link>
-      <p className="mt-6 flex items-center justify-center gap-1.5 text-[0.7rem] text-ink-soft">
+      <p className="relative mt-6 flex items-center justify-center gap-1.5 text-[0.7rem] text-ink-soft">
         <ShieldCheck className="h-3.5 w-3.5 text-teal" /> <Lock className="h-3 w-3" /> Encrypted · IRDAI regulated
       </p>
     </div>

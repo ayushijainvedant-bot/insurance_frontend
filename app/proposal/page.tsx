@@ -273,12 +273,13 @@ function CheckoutContent({ user }: { user: AuthUser }) {
   if (!ctx) return <FullLoader />;
 
   const { input, enquiryId, premium, insurer, providerProductId } = ctx;
-  // Before create-quote we only have the quick-quote estimate from the URL.
-  // Once the quote is created, switch to Digit's exact figures (net + tax =
-  // gross) so the sidebar and the Payment summary always agree.
-  const basePremium = summary?.netPremium ?? premium;
-  const gst = summary ? summary.tax : premium * 0.18;
-  const total = summary?.grossPremium ?? premium + premium * 0.18;
+  // Before create-quote we only have the quick-quote estimate from the URL — and
+  // that `premium` is the GROSS (GST-inclusive) figure. So back it out to an
+  // indicative net + 18% GST (net = gross / 1.18) instead of adding tax on top.
+  // Once the quote is created, switch to Digit's exact figures.
+  const total = summary?.grossPremium ?? premium;
+  const gst = summary ? summary.tax : Math.round((premium - premium / 1.18) * 100) / 100;
+  const basePremium = summary?.netPremium ?? total - gst;
 
   // ── Step 1 → create-quote, then branch on the returned KYC status ──
   const onProposal = proposal.handleSubmit(async (form) => {
@@ -511,7 +512,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
 
   async function onDownload() {
     setBusy(true); setError(null);
-    try { await downloadPolicyPdf(applicationId, providerProductId ?? ""); }
+    try { await downloadPolicyPdf(applicationId, providerProductId ?? "", `policy-${policyNumber || applicationId}.pdf`); }
     catch (err) { setError(err instanceof Error ? err.message : "Couldn't download the policy."); }
     finally { setBusy(false); }
   }

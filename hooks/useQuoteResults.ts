@@ -12,6 +12,14 @@ const DEFAULT_FILTERS: QuoteFilters = {
   accessories: [],
 };
 
+// Session-lived cache of successful quote results, keyed by the quote inputs +
+// filters. Lets back-navigation (e.g. cart → back) re-show results instantly
+// instead of re-hitting the flaky upstream quote API and risking an error.
+// Cleared on a full page reload.
+const RESULTS_CACHE = new Map<string, QuoteContext>();
+const cacheKey = (filters: QuoteFilters) =>
+  (typeof window !== "undefined" ? window.location.search : "") + "|" + JSON.stringify(filters);
+
 function applySorting(plans: InsurancePlan[], sort: SortKey): InsurancePlan[] {
   const copy = [...plans];
   switch (sort) {
@@ -63,10 +71,24 @@ export function useQuoteResults(): UseQuoteResultsReturn {
       return;
     }
 
+    /* eslint-disable react-hooks/set-state-in-effect --
+       hydrating from cache / starting a fetch on mount or filter change; intentional. */
+    // Serve from the session cache when we've already fetched these exact
+    // inputs — avoids the failing re-fetch after back-navigation.
+    const key = cacheKey(filters);
+    const cached = RESULTS_CACHE.get(key);
+    if (cached) {
+      setContext(cached);
+      setAllPlans(cached.plans || []);
+      loadedRef.current = true;
+      setLoading(false);
+      setUpdating(false);
+      setError(null);
+      return;
+    }
+
     const first = !loadedRef.current;
     let active = true;
-    /* eslint-disable react-hooks/set-state-in-effect --
-       starting a fetch in response to filter changes; intentional. */
     if (first) setLoading(true); else setUpdating(true);
     setError(null);
     /* eslint-enable react-hooks/set-state-in-effect */
@@ -75,6 +97,7 @@ export function useQuoteResults(): UseQuoteResultsReturn {
       fetchQuoteResults(input, filters)
         .then((ctx) => {
           if (!active) return;
+          RESULTS_CACHE.set(key, ctx);
           setContext(ctx);
           setAllPlans(ctx.plans || []);
           loadedRef.current = true;

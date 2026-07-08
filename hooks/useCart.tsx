@@ -14,8 +14,18 @@ interface CartContextValue {
   add: (input: AddCartInput) => Promise<void>;
   remove: (id: string) => Promise<void>;
   has: (enquiryId: string) => boolean;
+  /** Match by a *stable* identity (insurer offering + vehicle + cover) rather
+   *  than the volatile enquiryId, which changes on every quote re-fetch. */
+  hasPlan: (m: PlanMatch) => boolean;
   refresh: () => Promise<void>;
 }
+
+type PlanMatch = {
+  providerProductId?: string | null;
+  insurerName?: string | null;
+  vehicleLabel?: string | null;
+  coverageType?: string | null;
+};
 
 const CartContext = createContext<CartContextValue | null>(null);
 
@@ -36,6 +46,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     finally { setLoading(false); }
   }, [user]);
 
+  /* eslint-disable-next-line react-hooks/set-state-in-effect -- load the cart once auth is known. */
   useEffect(() => { if (ready) refresh(); }, [ready, user, refresh]);
 
   const add = useCallback(async (input: AddCartInput) => {
@@ -51,9 +62,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const has = useCallback((enquiryId: string) => items.some((i) => i.enquiryId === enquiryId), [items]);
 
+  const hasPlan = useCallback((m: PlanMatch) => items.some((i) => {
+    // Same vehicle is required — the cart can hold plans for several vehicles.
+    if (!m.vehicleLabel || i.vehicleLabel !== m.vehicleLabel) return false;
+    // Same insurer offering (prefer the stable providerProductId; fall back to name).
+    const sameProvider = m.providerProductId
+      ? i.providerProductId === m.providerProductId
+      : !!m.insurerName && i.insurerName === m.insurerName;
+    if (!sameProvider) return false;
+    // Same coverage type, when known.
+    return m.coverageType ? i.coverageType === m.coverageType : true;
+  }), [items]);
+
   const value = useMemo(
-    () => ({ items, count: items.length, loading, add, remove, has, refresh }),
-    [items, loading, add, remove, has, refresh],
+    () => ({ items, count: items.length, loading, add, remove, has, hasPlan, refresh }),
+    [items, loading, add, remove, has, hasPlan, refresh],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
