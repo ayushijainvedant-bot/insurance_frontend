@@ -69,44 +69,49 @@ export default function CartPage() {
     <>
       <Navbar />
       <main className="min-h-screen bg-linear-to-b from-brand/6 via-paper to-paper pb-24">
-        {/* ── Hero ── */}
-        <section className="relative overflow-hidden border-b border-line bg-linear-to-br from-brand/10 via-violet/6 to-white">
-          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-violet/12 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 -left-16 h-64 w-64 rounded-full bg-brand/12 blur-3xl" />
-          <div className="relative mx-auto max-w-3xl px-4 py-10 sm:px-6">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="mb-5 inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft transition hover:text-brand"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" /> Back
-            </button>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <span className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-brand to-violet shadow-lg shadow-brand/30">
-                <ShoppingCart className="h-7 w-7 text-white" strokeWidth={1.9} />
-                {count > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-coral px-1 text-[0.68rem] font-extrabold text-white shadow">
-                    {count}
-                  </span>
-                )}
-              </span>
-              <div>
-                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-brand">
-                  <Sparkles className="h-3.5 w-3.5" /> Saved for later
-                </p>
-                <h1 className="mt-0.5 font-display text-3xl font-extrabold text-ink sm:text-4xl">Your Cart</h1>
-                <p className="mt-1 text-sm text-ink-soft">Plans you saved — resume checkout whenever you&apos;re ready.</p>
-              </div>
-            </div>
-            <Link href="/" className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-white/70 px-4 py-2.5 text-sm font-bold text-ink backdrop-blur transition hover:border-brand/40 hover:text-brand">
-              <Plus className="h-4 w-4" /> Add more plans
-            </Link>
-            </div>
-          </div>
-        </section>
+        {/* ── Cute gradient hero ── */}
+        <div className="mx-auto max-w-3xl px-4 pt-8 sm:px-6">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft transition hover:text-brand"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Back
+          </button>
 
-        <div className="mx-auto mt-8 max-w-3xl px-4 sm:px-6">
+          <section className="relative overflow-hidden rounded-[1.75rem] bg-linear-to-br from-brand via-violet to-teal p-6 text-white shadow-xl shadow-brand/25 sm:p-8">
+            {/* floating decorative bubbles */}
+            <span className="pointer-events-none absolute -right-10 -top-12 h-44 w-44 rounded-full bg-white/12" />
+            <span className="pointer-events-none absolute right-28 top-10 h-16 w-16 rounded-full bg-white/10" />
+            <span className="pointer-events-none absolute -bottom-14 left-16 h-36 w-36 rounded-full bg-white/8" />
+            <span className="pointer-events-none absolute bottom-6 right-10 h-3 w-3 rounded-full bg-white/50" />
+
+            <div className="relative flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <span className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/20 ring-1 ring-white/25 backdrop-blur-sm">
+                  <ShoppingCart className="h-7 w-7 text-white" strokeWidth={1.9} />
+                  {count > 0 && (
+                    <span className="absolute -right-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-coral px-1 text-[0.68rem] font-extrabold text-white shadow">
+                      {count}
+                    </span>
+                  )}
+                </span>
+                <div>
+                  <p className="flex items-center gap-1.5 text-[0.7rem] font-bold uppercase tracking-wider text-white/75">
+                    <Sparkles className="h-3.5 w-3.5" /> Saved for later
+                  </p>
+                  <h1 className="mt-0.5 font-display text-3xl font-extrabold sm:text-4xl">Your Cart 🛒</h1>
+                  <p className="mt-1 text-sm text-white/85">Plans you saved — resume checkout whenever you&apos;re ready.</p>
+                </div>
+              </div>
+              <Link href="/" className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-4 py-2.5 text-sm font-bold text-white ring-1 ring-white/25 backdrop-blur transition hover:bg-white/25">
+                <Plus className="h-4 w-4" /> Add more plans
+              </Link>
+            </div>
+          </section>
+        </div>
+
+        <div className="mx-auto mt-6 max-w-3xl px-4 sm:px-6">
           {loading && items.length === 0 ? (
             <div className="space-y-4">
               {[0, 1].map((i) => <div key={i} className="h-40 animate-pulse rounded-3xl border border-line bg-white" />)}

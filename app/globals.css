@@ -18,9 +18,9 @@
 
   --color-ink: #0f172a;
   --color-ink-soft: #5b6679;
-  --color-paper: #f8fafc;        /* page background */
-  --color-surface: #ffffff;      /* card background */
-  --color-line: #e7eaf0;         /* hairline borders */
+  --color-paper: #eef1fb;        /* page background — soft blue-violet tinted canvas */
+  --color-surface: #ffffff;      /* card background — stays white so cards pop */
+  --color-line: #e4e8f4;         /* hairline borders — slightly cooler */
 
   --font-display: "Sora", "IBM Plex Sans", ui-sans-serif, sans-serif;
   --font-body: "Inter", ui-sans-serif, sans-serif;
@@ -29,6 +29,20 @@
 
 /* Enable `dark:` utilities driven by a `.dark` class on <html>. */
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* ====================================================
+   AMBIENT CANVAS — soft, fixed colour glows behind the
+   whole app so pages read as a tinted, lively canvas
+   instead of flat white. Colour vars adapt in dark mode.
+   ==================================================== */
+body {
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-image:
+    radial-gradient(55rem 38rem at 108% -8%, color-mix(in srgb, var(--color-violet) 14%, transparent), transparent 60%),
+    radial-gradient(48rem 40rem at -8% 3%, color-mix(in srgb, var(--color-brand) 13%, transparent), transparent 55%),
+    radial-gradient(46rem 40rem at 50% 118%, color-mix(in srgb, var(--color-teal) 12%, transparent), transparent 60%);
+}
 
 /* ====================================================
    DARK THEME — override the neutral tokens so the whole

@@ -27,6 +27,7 @@ export default function CmsDashboardPage() {
     finally { setLoading(false); }
   }, []);
 
+  /* eslint-disable-next-line react-hooks/set-state-in-effect -- initial dashboard load. */
   useEffect(() => { load(); }, [load]);
 
   const s = data?.stats;
@@ -44,9 +45,9 @@ export default function CmsDashboardPage() {
 
       {/* Primary stats */}
       <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-        <Stat icon={Users}      grad="from-brand to-violet"    label="Customers"        value={s?.totalCustomers} loading={loading} />
-        <Stat icon={ShieldCheck} grad="from-violet to-brand"   label="Policies"         value={s?.totalPolicies}  loading={loading} />
-        <Stat icon={Wallet}     grad="from-brand to-teal"      label="Policy Value"     value={fmtINR(s?.policyValue)} loading={loading} money />
+        <Stat icon={Users}       grad="from-brand to-violet"  tone="brand"  label="Customers"    value={s?.totalCustomers} loading={loading} />
+        <Stat icon={ShieldCheck} grad="from-violet to-brand"  tone="violet" label="Policies"     value={s?.totalPolicies}  loading={loading} />
+        <Stat icon={Wallet}      grad="from-brand to-teal"    filled        label="Policy Value" value={fmtINR(s?.policyValue)} loading={loading} money />
       </section>
 
       {/* Secondary stats */}
@@ -115,18 +116,40 @@ export default function CmsDashboardPage() {
 }
 
 /* ── pieces ── */
-function Stat({ icon: Icon, grad, label, value, loading, money }: {
-  icon: React.ElementType; grad: string; label: string; value: React.ReactNode; loading: boolean; money?: boolean;
+// Tinted card backgrounds per tone (mirrors the customer dashboard's colourful stats).
+const STAT_TINT: Record<string, string> = {
+  brand:  "border-brand/15 from-brand/8 to-white",
+  violet: "border-violet/15 from-violet/8 to-white",
+  teal:   "border-teal/15 from-teal/8 to-white",
+  amber:  "border-amber/15 from-amber/8 to-white",
+};
+function Stat({ icon: Icon, grad, tone = "brand", filled, label, value, loading, money }: {
+  icon: React.ElementType; grad: string; tone?: string; filled?: boolean;
+  label: string; value: React.ReactNode; loading: boolean; money?: boolean;
 }) {
+  if (filled) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+        className={`relative overflow-hidden rounded-2xl bg-linear-to-br ${grad} p-4 text-white shadow-lg shadow-brand/25 sm:p-5`}>
+        <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/15 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-10 -left-8 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
+        <span className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+          <Icon className="h-5 w-5 text-white" strokeWidth={2} />
+        </span>
+        <p className="relative mt-3 text-[0.68rem] font-bold uppercase tracking-wide text-white/80">{label}</p>
+        {loading ? <div className="relative mt-1 h-7 w-16 animate-pulse rounded bg-white/25" />
+          : <p className={`relative mt-0.5 font-display font-extrabold ${money ? "text-xl" : "text-2xl"}`}>{value ?? 0}</p>}
+      </motion.div>
+    );
+  }
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-      className="relative overflow-hidden rounded-2xl border border-line bg-white p-4 shadow-sm sm:p-5">
-      <div className="pointer-events-none absolute -right-8 -top-8 h-20 w-20 rounded-full bg-brand/5 blur-2xl" />
+      className={`relative overflow-hidden rounded-2xl border bg-linear-to-br p-4 shadow-sm sm:p-5 ${STAT_TINT[tone] ?? STAT_TINT.brand}`}>
       <span className={`flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br ${grad} shadow-md`}>
         <Icon className="h-5 w-5 text-white" strokeWidth={2} />
       </span>
       <p className="mt-3 text-[0.68rem] font-bold uppercase tracking-wide text-ink-soft">{label}</p>
-      {loading ? <div className="mt-1 h-7 w-16 animate-pulse rounded bg-paper" />
+      {loading ? <div className="mt-1 h-7 w-16 animate-pulse rounded bg-white/60" />
         : <p className={`mt-0.5 font-display font-extrabold text-ink ${money ? "text-xl" : "text-2xl"}`}>{value ?? 0}</p>}
     </motion.div>
   );
@@ -139,13 +162,13 @@ function MiniStat({ icon: Icon, label, value, loading, tone, money }: {
   icon: React.ElementType; label: string; value: React.ReactNode; loading: boolean; tone: string; money?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-line bg-white p-3.5 shadow-sm">
+    <div className={`flex items-center gap-3 rounded-2xl border bg-linear-to-br p-3.5 shadow-sm ${STAT_TINT[tone] ?? STAT_TINT.brand}`}>
       <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${TONE[tone]}`}>
         <Icon className="h-4 w-4" />
       </span>
       <div className="min-w-0">
         <p className="text-[0.6rem] font-bold uppercase tracking-wide text-ink-soft">{label}</p>
-        {loading ? <div className="mt-0.5 h-5 w-12 animate-pulse rounded bg-paper" />
+        {loading ? <div className="mt-0.5 h-5 w-12 animate-pulse rounded bg-white/60" />
           : <p className={`font-display font-bold text-ink ${money ? "text-sm" : "text-lg"}`}>{value ?? 0}</p>}
       </div>
     </div>

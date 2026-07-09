@@ -72,11 +72,30 @@ export function SearchBox({ value, onChange, placeholder }: {
 
 /* ── table shell ── */
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`overflow-hidden rounded-2xl border border-line bg-white shadow-sm ${className}`}>{children}</div>;
+  return (
+    <div className={`relative overflow-hidden rounded-2xl border border-line bg-linear-to-br from-brand/5 via-white to-violet/5 shadow-sm ${className}`}>
+      {/* subtle brand accent so cards read as designed, not plain white */}
+      <span className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-linear-to-r from-brand/60 via-violet/60 to-teal/60" />
+      {children}
+    </div>
+  );
 }
 
 export function TableWrap({ children }: { children: React.ReactNode }) {
-  return <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm">{children}</table></div>;
+  return (
+    <div className="overflow-x-auto">
+      {/* Tinted header + zebra rows so tables don't read as a flat white grid.
+          Applies to every CMS table via arbitrary variants (no per-page edits). */}
+      <table
+        className="w-full min-w-[640px] text-left text-sm
+          [&_thead]:bg-linear-to-r [&_thead]:from-brand/6 [&_thead]:to-violet/6
+          [&_thead_th]:border-b [&_thead_th]:border-line
+          [&_tbody_tr:nth-child(even)]:bg-ink/4"
+      >
+        {children}
+      </table>
+    </div>
+  );
 }
 
 export function Th({ children, className = "" }: { children?: React.ReactNode; className?: string }) {

@@ -920,7 +920,7 @@ function CheckoutContent({ user }: { user: AuthUser }) {
                           </span>
                           <div className="min-w-0">
                             <p className="text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">Address</p>
-                            <p className="text-sm font-semibold text-ink break-words">{summary.address}</p>
+                            <p className="text-sm font-semibold text-ink wrap-break-word">{summary.address}</p>
                           </div>
                         </div>
                       )}
@@ -1274,7 +1274,7 @@ function DetailField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-[0.66rem] font-semibold uppercase tracking-wide text-ink-soft">{label}</p>
-      <p className="mt-0.5 text-sm font-bold text-ink break-words">{value}</p>
+      <p className="mt-0.5 text-sm font-bold text-ink wrap-break-word">{value}</p>
     </div>
   );
 }

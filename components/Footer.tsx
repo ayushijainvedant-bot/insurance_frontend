@@ -71,9 +71,9 @@ function LogoMark() {
 
 export default function Footer() {
   return (
-    // Always-dark footer, pinned to the navy (light-mode `ink`) so it doesn't
-    // flip to a light surface in dark mode where `--color-ink` becomes light.
-    <footer className="bg-[#0f172a] text-white">
+    // Theme-aware footer: light surface in light mode, dark surface in dark mode
+    // (via the `surface` token). The coloured CTA banner stays the same in both.
+    <footer className="border-t border-line bg-surface text-ink">
       {/* CTA banner */}
       <div className="bg-linear-to-r from-brand to-violet px-4 py-12 sm:px-6">
         <div className="mx-auto flex max-w-295 flex-col items-center gap-6 text-center sm:flex-row sm:justify-between sm:text-left">
@@ -102,24 +102,24 @@ export default function Footer() {
             <div>
               <a href="#" className="flex items-center gap-2.5">
                 <LogoMark />
-                <span className="font-display text-lg font-bold text-white">
+                <span className="font-display text-lg font-bold text-ink">
                   vedant<span className="text-brand">insurance</span>
                 </span>
               </a>
-              <p className="mt-4 text-sm leading-relaxed text-white/60">
+              <p className="mt-4 text-sm leading-relaxed text-ink-soft">
                 IRDAI registered insurance broker helping Indian families compare, buy and manage
                 all their insurance plans from one trusted platform.
               </p>
 
               {/* Contact */}
               <div className="mt-6 space-y-2.5">
-                <a href="tel:+911800000000" className="flex items-center gap-2.5 text-sm text-white/70 hover:text-white">
+                <a href="tel:+911800000000" className="flex items-center gap-2.5 text-sm text-ink-soft hover:text-ink">
                   <Phone className="h-4 w-4 text-brand" /> 1800-XXX-XXXX (Toll Free)
                 </a>
-                <a href="mailto:hello@vedantinsurance.in" className="flex items-center gap-2.5 text-sm text-white/70 hover:text-white">
+                <a href="mailto:hello@vedantinsurance.in" className="flex items-center gap-2.5 text-sm text-ink-soft hover:text-ink">
                   <Mail className="h-4 w-4 text-brand" /> hello@vedantinsurance.in
                 </a>
-                <p className="flex items-start gap-2.5 text-sm text-white/70">
+                <p className="flex items-start gap-2.5 text-sm text-ink-soft">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
                   123 Finance Tower, BKC, Mumbai — 400051
                 </p>
@@ -134,7 +134,7 @@ export default function Footer() {
                       key={s.label}
                       href={s.href}
                       aria-label={s.label}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-white/70 transition-colors hover:bg-brand hover:text-white"
+                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-ink/5 text-ink-soft transition-colors hover:border-brand hover:bg-brand hover:text-white"
                     >
                       <Icon className="h-4 w-4" />
                     </a>
@@ -146,13 +146,13 @@ export default function Footer() {
             {/* Link columns */}
             {COLS.map((col) => (
               <div key={col.heading}>
-                <p className="mb-4 text-xs font-bold uppercase tracking-widest text-white/40">
+                <p className="mb-4 text-xs font-bold uppercase tracking-widest text-ink-soft">
                   {col.heading}
                 </p>
                 <ul className="space-y-2.5">
                   {col.links.map((l) => (
                     <li key={l.label}>
-                      <a href={l.href} className="text-sm text-white/65 transition-colors hover:text-white">
+                      <a href={l.href} className="text-sm text-ink-soft transition-colors hover:text-brand">
                         {l.label}
                       </a>
                     </li>
@@ -163,13 +163,13 @@ export default function Footer() {
           </div>
 
           {/* Bottom bar */}
-          <div className="mt-12 flex flex-col items-center gap-4 border-t border-white/10 pt-8 sm:flex-row sm:justify-between">
-            <div className="flex items-center gap-2 text-xs text-white/40">
+          <div className="mt-12 flex flex-col items-center gap-4 border-t border-line pt-8 sm:flex-row sm:justify-between">
+            <div className="flex items-center gap-2 text-xs text-ink-soft">
               <ShieldCheck className="h-4 w-4 text-teal" />
               IRDAI Registered Insurance Broker · Reg. No. XXXXXX · Valid till DD/MM/YYYY
               {/* TODO: fill in your real registration details */}
             </div>
-            <p className="text-xs text-white/35">
+            <p className="text-xs text-ink-soft">
               © {new Date().getFullYear()} Vedant Insurance Limited. All rights reserved.
             </p>
           </div>

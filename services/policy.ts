@@ -38,6 +38,54 @@ export async function getPolicyStatus(
 }
 
 /**
+ * Full, live policy details from the insurer (same endpoint as the status
+ * poll, but we keep the whole Digit response so the details modal can show
+ * everything — vehicle, coverages, premium breakdown, KYC/payment status).
+ */
+export interface PolicyDetails {
+  policyNumber?: string;
+  applicationId?: string;
+  policyStatus?: string;
+  policyState?: string;
+  kycStatus?: { kycVerificationStatus?: string; paymentStatus?: string };
+  grossPremium?: string;
+  netPremium?: string;
+  serviceTax?: { totalTax?: string };
+  contract?: {
+    startDate?: string;
+    endDate?: string;
+    insuranceProductCode?: string;
+    subInsuranceProductCode?: string;
+    coverages?: Record<string, unknown>;
+  };
+  vehicle?: {
+    make?: string;
+    model?: string;
+    licensePlateNumber?: string;
+    vehicleIdentificationNumber?: string;
+    engineNumber?: string;
+    manufactureDate?: string;
+    registrationDate?: string;
+    vehicleIDV?: { idv?: number };
+  };
+  [k: string]: unknown;
+}
+
+export async function getPolicyDetails(
+  policyNumber: string,
+  providerProductId: string,
+): Promise<PolicyDetails> {
+  // The insurer's status call can be slow (up to ~30s), so override the api
+  // client's default 15s timeout — otherwise a slow-but-fine call aborts.
+  const { data } = await api.post(
+    "/user/policy/status",
+    { policyNumber, providerProductId },
+    { timeout: 45_000 },
+  );
+  return inner<PolicyDetails>(data);
+}
+
+/**
  * KYC verification input. Policy number, date of birth and gender come from the
  * successful create-quote step (never re-collected from the user); the customer
  * only chooses the document types and uploads the proof files.

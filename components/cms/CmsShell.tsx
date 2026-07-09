@@ -132,7 +132,7 @@ export default function CmsShell({ title, children }: { title: string; children:
           </nav>
         </header>
 
-        <main className="flex-1 p-4 sm:p-6">{children}</main>
+        <main className="flex-1 bg-linear-to-b from-brand/5 via-paper to-paper p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );
